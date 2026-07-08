@@ -21,6 +21,21 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Must run BEFORE the image update below: if the Container App doesn't already
+      # have valid GHCR pull credentials, the new revision's image pull fails silently
+      # (the `containerapp update` command itself still reports success) and Azure keeps
+      # serving whatever revision was previously running -- which is exactly what made
+      # every backend route except /actuator/health look permanently 404, unchanged
+      # across multiple deploys that each looked "successful."
+      - name: Configure GHCR pull credentials
+        run: |
+          az containerapp registry set \
+            --name worktrac-backend-lower \
+            --resource-group worktrac-rg \
+            --server ghcr.io \
+            --username ${{ github.repository_owner }} \
+            --password ${{ secrets.GHCR_TOKEN }}
+
       - name: Deploy backend to Container Apps
         run: |
           az containerapp update \
@@ -31,15 +46,6 @@ jobs:
               "SPRING_DATASOURCE_URL=${{ secrets.SQL_CONNECTION_STRING_LOWER }}" \
               "SPRING_PROFILES_ACTIVE=lower" \
               "CORS_ALLOWED_ORIGINS=https://black-flower-0c9bf9d0f.7.azurestaticapps.net,https://worktrac-dev.starnerconsulting.co"
-
-      - name: Configure GHCR pull credentials
-        run: |
-          az containerapp registry set \
-            --name worktrac-backend-lower \
-            --resource-group worktrac-rg \
-            --server ghcr.io \
-            --username ${{ github.repository_owner }} \
-            --password ${{ secrets.GHCR_TOKEN }}
 
   deploy-frontend-lower:
     runs-on: ubuntu-latest
