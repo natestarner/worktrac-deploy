@@ -30,7 +30,7 @@ jobs:
             --set-env-vars \
               "SPRING_DATASOURCE_URL=${{ secrets.SQL_CONNECTION_STRING_LOWER }}" \
               "SPRING_PROFILES_ACTIVE=lower" \
-              "CORS_ALLOWED_ORIGINS=https://black-flower-0c9bf9d0f.7.azurestaticapps.net"
+              "CORS_ALLOWED_ORIGINS=https://black-flower-0c9bf9d0f.7.azurestaticapps.net,https://worktrac-dev.starnerconsulting.co"
 
       - name: Configure GHCR pull credentials
         run: |
