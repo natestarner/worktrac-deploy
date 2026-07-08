@@ -21,6 +21,19 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Must run BEFORE the image update below -- see the identical comment in
+      # deploy-lower.yml. Kept in sync for consistency even though the lower-environment
+      # crash turned out to have a different root cause (missing APP_JWT_SECRET /
+      # SPRING_DATASOURCE_USERNAME placeholders, not a credentials-ordering issue).
+      - name: Configure GHCR pull credentials
+        run: |
+          az containerapp registry set \
+            --name worktrac-backend-prod \
+            --resource-group worktrac-rg \
+            --server ghcr.io \
+            --username ${{ github.repository_owner }} \
+            --password ${{ secrets.GHCR_TOKEN }}
+
       - name: Deploy backend to Container Apps
         run: |
           az containerapp update \
@@ -30,16 +43,8 @@ jobs:
             --set-env-vars \
               "SPRING_DATASOURCE_URL=${{ secrets.SQL_CONNECTION_STRING_PROD }}" \
               "SPRING_PROFILES_ACTIVE=production" \
-              "CORS_ALLOWED_ORIGINS=https://black-desert-00fee190f.7.azurestaticapps.net"
-
-      - name: Configure GHCR pull credentials
-        run: |
-          az containerapp registry set \
-            --name worktrac-backend-prod \
-            --resource-group worktrac-rg \
-            --server ghcr.io \
-            --username ${{ github.repository_owner }} \
-            --password ${{ secrets.GHCR_TOKEN }}
+              "CORS_ALLOWED_ORIGINS=https://black-desert-00fee190f.7.azurestaticapps.net,https://worktrac-app.starnerconsulting.co" \
+              "APP_JWT_SECRET=${{ secrets.APP_JWT_SECRET_PROD }}"
 
   deploy-frontend-prod:
     runs-on: ubuntu-latest
