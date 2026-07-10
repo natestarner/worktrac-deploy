@@ -74,30 +74,19 @@ jobs:
       - name: Checkout deploy repo
         uses: actions/checkout@v4
 
-      - name: Wait for backend to start
-        run: |
-          echo "Waiting for container to wake up (cold start)..."
-          sleep 30
-
       - name: Health check — backend
-        run: |
-          BACKEND_URL="https://worktrac-backend-lower.whitehill-3dc27bb3.eastus.azurecontainerapps.io"
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BACKEND_URL/actuator/health" --max-time 60)
-          if [ "$STATUS" != "200" ]; then
-            echo "Backend health check failed with status $STATUS"
-            exit 1
-          fi
-          echo "Backend is healthy"
+        uses: ./.github/actions/wait-for-url
+        with:
+          url: https://worktrac-backend-lower.whitehill-3dc27bb3.eastus.azurecontainerapps.io/actuator/health
+          label: Backend
+          timeout-seconds: '180'
 
       - name: Health check — frontend
-        run: |
-          FRONTEND_URL="https://black-flower-0c9bf9d0f.7.azurestaticapps.net"
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$FRONTEND_URL" --max-time 30)
-          if [ "$STATUS" != "200" ]; then
-            echo "Frontend health check failed with status $STATUS"
-            exit 1
-          fi
-          echo "Frontend is healthy"
+        uses: ./.github/actions/wait-for-url
+        with:
+          url: https://black-flower-0c9bf9d0f.7.azurestaticapps.net
+          label: Frontend
+          timeout-seconds: '120'
 
   e2e-tests:
     runs-on: ubuntu-latest
@@ -109,6 +98,11 @@ jobs:
         with:
           repository: ${{ github.repository_owner }}/worktrac-source
           path: source
+
+      - name: Checkout deploy repo (for the wait-for-url action)
+        uses: actions/checkout@v4
+        with:
+          path: deploy
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -127,8 +121,19 @@ jobs:
           cd source/e2e
           npx playwright install chromium --with-deps
 
-      - name: Wait for environments to stabilize
-        run: sleep 45
+      - name: Wait for backend to be ready
+        uses: ./deploy/.github/actions/wait-for-url
+        with:
+          url: https://worktrac-backend-lower.whitehill-3dc27bb3.eastus.azurecontainerapps.io/actuator/health
+          label: Backend
+          timeout-seconds: '180'
+
+      - name: Wait for frontend to be ready
+        uses: ./deploy/.github/actions/wait-for-url
+        with:
+          url: https://black-flower-0c9bf9d0f.7.azurestaticapps.net
+          label: Frontend
+          timeout-seconds: '120'
 
       - name: Run E2E tests against lower environment
         run: |

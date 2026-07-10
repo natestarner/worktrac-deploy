@@ -1,0 +1,40 @@
+name: 'Wait for URL to be ready'
+description: 'Polls a URL until it returns HTTP 200, or fails after a timeout -- replaces a blind sleep with an actual readiness check, bounded so a genuinely broken deploy still fails fast.'
+
+inputs:
+  url:
+    description: 'URL to poll'
+    required: true
+  label:
+    description: 'Human-readable name used in log output'
+    required: true
+  timeout-seconds:
+    description: 'Give up and fail after this many seconds'
+    required: false
+    default: '180'
+  interval-seconds:
+    description: 'Seconds to wait between polls'
+    required: false
+    default: '5'
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      run: |
+        deadline=$(( $(date +%s) + ${{ inputs.timeout-seconds }} ))
+        echo "Waiting for ${{ inputs.label }} (${{ inputs.url }}) to respond 200, up to ${{ inputs.timeout-seconds }}s..."
+        while true; do
+          status=$(curl -s -o /dev/null -w "%{http_code}" "${{ inputs.url }}" --max-time 10 || echo "000")
+          if [ "$status" = "200" ]; then
+            echo "${{ inputs.label }} is healthy (HTTP 200)."
+            exit 0
+          fi
+          now=$(date +%s)
+          if [ "$now" -ge "$deadline" ]; then
+            echo "::error::${{ inputs.label }} did not become healthy within ${{ inputs.timeout-seconds }}s (last status: $status)."
+            exit 1
+          fi
+          echo "  ${{ inputs.label }} not ready yet (status: $status) -- retrying in ${{ inputs.interval-seconds }}s..."
+          sleep ${{ inputs.interval-seconds }}
+        done
