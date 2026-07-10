@@ -10,7 +10,7 @@ jobs:
 
     steps:
       - name: Checkout deploy repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Read image tag
         id: tag
@@ -51,7 +51,7 @@ jobs:
 
     steps:
       - name: Checkout deploy repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Apply environment frontend config
         run: cp config/production/frontend-env.json frontend-build/config.json
