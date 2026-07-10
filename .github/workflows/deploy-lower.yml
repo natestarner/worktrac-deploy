@@ -10,14 +10,14 @@ jobs:
 
     steps:
       - name: Checkout deploy repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Read image tag
         id: tag
         run: echo "IMAGE_TAG=$(cat manifests/image-tag.txt)" >> $GITHUB_OUTPUT
 
       - name: Azure Login
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -53,7 +53,7 @@ jobs:
 
     steps:
       - name: Checkout deploy repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Apply environment frontend config
         run: cp config/lower/frontend-env.json frontend-build/config.json
@@ -72,7 +72,7 @@ jobs:
 
     steps:
       - name: Checkout deploy repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Health check — backend
         uses: ./.github/actions/wait-for-url
@@ -94,18 +94,18 @@ jobs:
 
     steps:
       - name: Checkout source repo (for e2e tests)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ github.repository_owner }}/worktrac-source
           path: source
 
       - name: Checkout deploy repo (for the wait-for-url action)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: deploy
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -143,7 +143,7 @@ jobs:
           E2E_BASE_URL: https://black-flower-0c9bf9d0f.7.azurestaticapps.net
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
