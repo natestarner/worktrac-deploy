@@ -10,16 +10,29 @@ jobs:
 
     steps:
       - name: Checkout deploy repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Read image tag
         id: tag
         run: echo "IMAGE_TAG=$(cat manifests/image-tag.txt)" >> $GITHUB_OUTPUT
 
       - name: Azure Login
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Must run BEFORE the image update below -- see the identical comment in
+      # deploy-lower.yml. Kept in sync for consistency even though the lower-environment
+      # crash turned out to have a different root cause (missing APP_JWT_SECRET /
+      # SPRING_DATASOURCE_USERNAME placeholders, not a credentials-ordering issue).
+      - name: Configure GHCR pull credentials
+        run: |
+          az containerapp registry set \
+            --name worktrac-backend-prod \
+            --resource-group worktrac-rg \
+            --server ghcr.io \
+            --username ${{ github.repository_owner }} \
+            --password ${{ secrets.GHCR_TOKEN }}
 
       - name: Deploy backend to Container Apps
         run: |
@@ -30,23 +43,21 @@ jobs:
             --set-env-vars \
               "SPRING_DATASOURCE_URL=${{ secrets.SQL_CONNECTION_STRING_PROD }}" \
               "SPRING_PROFILES_ACTIVE=production" \
-              "CORS_ALLOWED_ORIGINS=https://black-desert-00fee190f.7.azurestaticapps.net"
-
-      - name: Configure GHCR pull credentials
-        run: |
-          az containerapp registry set \
-            --name worktrac-backend-prod \
-            --resource-group worktrac-rg \
-            --server ghcr.io \
-            --username ${{ github.repository_owner }} \
-            --password ${{ secrets.GHCR_TOKEN }}
+              "CORS_ALLOWED_ORIGINS=https://black-desert-00fee190f.7.azurestaticapps.net,https://worktrac-app.starnerconsulting.co,https://app.huddle.fitness" \
+              "APP_JWT_SECRET=${{ secrets.APP_JWT_SECRET_PROD }}" \
+              "ACS_EMAIL_CONNECTION_STRING=${{ secrets.ACS_EMAIL_CONNECTION_STRING_PROD }}" \
+              "ACS_EMAIL_SENDER_ADDRESS=DoNotReply@huddle.fitness" \
+              "APP_EMAIL_APP_URL=https://app.huddle.fitness/app/log"
 
   deploy-frontend-prod:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout deploy repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - name: Apply environment frontend config
+        run: cp config/production/frontend-env.json frontend-build/config.json
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1

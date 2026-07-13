@@ -1,5 +1,9 @@
 {
   "SPRING_DATASOURCE_URL": "SET_VIA_SECRET",
   "SPRING_PROFILES_ACTIVE": "production",
-  "CORS_ALLOWED_ORIGINS": "https://black-desert-00fee190f.7.azurestaticapps.net"
+  "CORS_ALLOWED_ORIGINS": "https://black-desert-00fee190f.7.azurestaticapps.net,https://worktrac-app.starnerconsulting.co,https://app.huddle.fitness",
+  "APP_JWT_SECRET": "SET_VIA_SECRET",
+  "ACS_EMAIL_CONNECTION_STRING": "SET_VIA_SECRET",
+  "ACS_EMAIL_SENDER_ADDRESS": "DoNotReply@huddle.fitness",
+  "APP_EMAIL_APP_URL": "https://app.huddle.fitness/app/log"
 }
