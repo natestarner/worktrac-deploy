@@ -5,5 +5,6 @@
   "APP_JWT_SECRET": "SET_VIA_SECRET",
   "ACS_EMAIL_CONNECTION_STRING": "SET_VIA_SECRET",
   "ACS_EMAIL_SENDER_ADDRESS": "DoNotReply@huddle.fitness",
-  "APP_EMAIL_APP_URL": "https://app.huddle.fitness/app/log"
+  "APP_EMAIL_APP_URL": "https://app.huddle.fitness/app/log",
+  "ADMIN_EMAILS": "nate+huddleadmin@starner.co"
 }
