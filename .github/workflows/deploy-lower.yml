@@ -50,7 +50,8 @@ jobs:
               "ACS_EMAIL_CONNECTION_STRING=${{ secrets.ACS_EMAIL_CONNECTION_STRING_LOWER }}" \
               "ACS_EMAIL_SENDER_ADDRESS=DoNotReply@huddle.fitness" \
               "APP_EMAIL_APP_URL=https://app.dev.huddle.fitness/app/log" \
-              "E2E_TEST_SUPPORT_KEY=${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}"
+              "E2E_TEST_SUPPORT_KEY=${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}" \
+              "ADMIN_EMAILS=nate+huddleadmin@starner.co"
 
   deploy-frontend-lower:
     runs-on: ubuntu-latest
