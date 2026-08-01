@@ -51,6 +51,7 @@ jobs:
               "ACS_EMAIL_SENDER_ADDRESS=DoNotReply@huddle.fitness" \
               "APP_EMAIL_APP_URL=https://app.dev.huddle.fitness/app/log" \
               "E2E_TEST_SUPPORT_KEY=${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}" \
+              "ADMIN_EMAILS=nate+huddleadmin@starner.co" \
               "EMAIL_DELIVERY_WEBHOOK_KEY=${{ secrets.EMAIL_DELIVERY_WEBHOOK_KEY_LOWER }}"
 
   deploy-frontend-lower:
