@@ -4,6 +4,20 @@ on:
   push:
     branches: [lower]
 
+# Lower is a single, shared, mutable environment (one Container App, one Azure SQL DB) --
+# multiple source-repo worktrees can merge and promote to it independently, so without this,
+# two deploys landing close together could run their e2e-tests jobs concurrently against the
+# same lower DB, or race on which image tag actually ends up live. This only serializes RUNS;
+# it does not gate on the previous run's result -- a red run's slot still releases the instant
+# it finishes (pass or fail), so a failure here is never "held open" waiting for a fix, and
+# nothing about this blocks source `main` from merging further. See worktrac-source's
+# CLAUDE.md / .claude/commands/deploy-to-lower.md for the fix-attribution protocol this
+# implies (a failure here may belong to a different, earlier-queued merge, not the one that
+# triggered this specific run).
+concurrency:
+  group: deploy-lower
+  cancel-in-progress: false
+
 jobs:
   deploy-backend-lower:
     runs-on: ubuntu-latest
