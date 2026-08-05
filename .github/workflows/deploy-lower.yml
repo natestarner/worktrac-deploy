@@ -4,6 +4,20 @@ on:
   push:
     branches: [lower]
 
+# Lower is a single, shared, mutable environment (one Container App, one Azure SQL DB) --
+# multiple source-repo worktrees can merge and promote to it independently, so without this,
+# two deploys landing close together could run their e2e-tests jobs concurrently against the
+# same lower DB, or race on which image tag actually ends up live. This only serializes RUNS;
+# it does not gate on the previous run's result -- a red run's slot still releases the instant
+# it finishes (pass or fail), so a failure here is never "held open" waiting for a fix, and
+# nothing about this blocks source `main` from merging further. See worktrac-source's
+# CLAUDE.md / .claude/commands/deploy-to-lower.md for the fix-attribution protocol this
+# implies (a failure here may belong to a different, earlier-queued merge, not the one that
+# triggered this specific run).
+concurrency:
+  group: deploy-lower
+  cancel-in-progress: false
+
 jobs:
   deploy-backend-lower:
     runs-on: ubuntu-latest
@@ -140,6 +154,25 @@ jobs:
           url: https://black-flower-0c9bf9d0f.7.azurestaticapps.net
           label: Frontend
           timeout-seconds: '120'
+
+      # The wait-for-url checks above only prove ONE request has succeeded -- lower's Container
+      # App runs min-replicas=0 (kept that way deliberately for cost; see worktrac-source's
+      # CLAUDE.md), so Azure's autoscaler can still decide to scale out from that first request
+      # or the traffic immediately following it. If that scale-out happens mid-suite instead of
+      # here, a request can land on a different, colder instance than a previous one in the same
+      # test -- e.g. TestCodeCache is in-memory and per-instance, which is exactly what caused an
+      # intermittent "pending code not found" flake against lower (see e2e/tests/support/auth.ts's
+      # retry-loop comment). A small burst of requests here gives that scaling decision a safe,
+      # inconsequential window to settle in before Playwright's real assertions start, instead of
+      # absorbing it as a flake partway through the first few specs.
+      - name: Warm up backend (settle any autoscale event before real e2e traffic starts)
+        run: |
+          for i in $(seq 1 8); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+              https://worktrac-backend-lower.whitehill-3dc27bb3.eastus.azurecontainerapps.io/actuator/health || echo "000")
+            echo "warm-up ping $i: $code"
+            sleep 2
+          done
 
       - name: Run E2E tests against lower environment
         run: |
