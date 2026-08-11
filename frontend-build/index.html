@@ -6,8 +6,15 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#d4673e" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Two theme-colors, not one: a single value leaves the iOS status bar and the
+         Android chrome painted with the light-mode accent even in dark mode. These
+         mirror --color-bg in frontend/src/index.css for each scheme. -->
+    <meta name="theme-color" content="#faf9f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)" />
+    <!-- viewport-fit=cover opts into the area behind the notch and home indicator on a
+         standalone-display PWA. Without it the safe-area-inset-* values that index.css
+         relies on all resolve to 0px. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Huddle</title>
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://app.huddle.fitness/" />
@@ -16,8 +23,8 @@
     <meta property="og:image" content="https://app.huddle.fitness/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <script type="module" crossorigin src="/assets/index-BSS6SPDn.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CI6hhxvD.css">
+    <script type="module" crossorigin src="/assets/index-8vLRHRmj.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DUDL53Eg.css">
   </head>
   <body>
     <div id="root"></div>
