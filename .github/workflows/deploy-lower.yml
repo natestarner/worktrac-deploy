@@ -182,10 +182,41 @@ jobs:
           E2E_BASE_URL: https://black-flower-0c9bf9d0f.7.azurestaticapps.net
           E2E_TEST_SUPPORT_KEY: ${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}
 
+      # Playwright runs with retries: 2 here, so a test that fails and then passes is recorded
+      # `flaky` while this job -- and the whole run -- still reports success. That means a green
+      # check says nothing about whether the suite is healthy: reconstructing the 51 runs still
+      # retained on 2026-08-14 showed 42 green runs, 38 of which contained at least one flaky
+      # test, and one spec failing 38 of 51 runs that nobody had reason to notice.
+      #
+      # This prints the flaky/failed tests onto the run summary page so that fact is visible
+      # without anyone downloading an artifact to find it. `continue-on-error` because
+      # instrumentation must never be a new way for a deploy to go red.
+      - name: Summarize e2e results (flaky + failed)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          node source/e2e/scripts/flake-summary.mjs \
+            source/e2e/test-results/results.json >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: source/e2e/playwright-report/
-          retention-days: 14
+          # Was 14. The per-test flake history exists nowhere else, and 14 days meant it was
+          # already gone by the time a pattern was worth investigating -- the traces needed to
+          # debug a flake noticed last week had expired. 90 is the repo maximum.
+          retention-days: 90
+
+      # The machine-readable half, kept as its own artifact rather than a second `path:` on the
+      # one above: upload-artifact roots the archive at the least common ancestor of its paths, so
+      # adding a path here would silently relocate index.html into a subdirectory and change how
+      # the report opens.
+      - name: Upload machine-readable e2e results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: e2e-results-json
+          path: source/e2e/test-results/results.json
+          retention-days: 90
