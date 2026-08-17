@@ -4,5 +4,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Dependabot reads this file from the default branch (production), but a workflow executes
+    # from the branch it was pushed to -- deploy-lower.yml runs `on: push: branches: [lower]`.
+    # Without this, action bumps open against production, where that file is inert, and `lower`
+    # keeps the old version forever because promotion only ever flows lower -> production.
+    # PR #25 sat open a month for exactly this reason before being redone on `lower`.
+    target-branch: "lower"
     labels:
       - "ci"
