@@ -68,3 +68,25 @@ jobs:
           action: "upload"
           app_location: "frontend-build"
           skip_app_build: true
+
+  # The marketing site (huddle.fitness / www.huddle.fitness) is its own free-tier Static Web
+  # App, deployed independently of the main app -- so this job is deliberately NOT in anything
+  # else's `needs:`, and nothing needs it. A marketing deploy failure must never hold up or be
+  # held up by the app's backend/frontend jobs above.
+  deploy-marketing-prod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout deploy repo
+        uses: actions/checkout@v7
+
+      - name: Apply environment robots.txt
+        run: cp config/production/marketing-robots.txt marketing-build/robots.txt
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN_MARKETING_PROD }}
+          action: "upload"
+          app_location: "marketing-build"
+          skip_app_build: true
