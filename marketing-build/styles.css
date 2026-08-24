@@ -132,6 +132,14 @@
 
 html {
   scroll-behavior: smooth;
+  /* Mobile Safari can boost font-size on narrow, text-heavy columns (its
+     "text autosizing" heuristic) independently of the viewport meta tag. That
+     inflation is applied per-element, not to the whole page uniformly, so it
+     can make one paragraph wrap differently than its siblings even though
+     nothing in this stylesheet targets it. Not reproducible in Chromium, so
+     this is prophylactic rather than a verified fix for any specific element. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -142,8 +150,69 @@ html {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Shrinking duration/delay above is NOT enough by itself: a fill-forwards
+     animation this short can land between two rendered frames and never
+     visibly reach its `to` keyframe, leaving the element stuck at its
+     pre-animation state -- opacity:0 for .reveal, plain ink for the hero's
+     accent word. Confirmed live (not theoretical): every .reveal section
+     rendered permanently invisible under reduced motion before this was
+     added. Force the resting state directly instead of trusting the timing
+     trick to get there. */
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .hero__title em {
+    color: var(--color-accent-text) !important;
+  }
+}
+
+/* ============================================================================
+   Scroll motion — a tasteful fade-and-rise as a section enters the viewport.
+   The base rule plays once on load (so nothing is ever stuck invisible on a
+   browser without scroll-linked animations); @supports upgrades it to a real
+   scroll-linked reveal. prefers-reduced-motion gets an explicit opacity/
+   transform override above, not just a shrunk duration -- see the comment
+   there for why the duration trick alone isn't reliable.
+
+   animation-range is "entry" at both ends, not "cover": cover's 100% is the
+   element's entire on-screen lifetime (first pixel visible to last), which
+   scales with the element's own height -- for anything taller than the
+   viewport (several of these sections are) that stretched the fade over a
+   large chunk of normal reading scroll, so content low in the viewport
+   stayed part-transparent and hard to read. "entry" is capped at roughly one
+   viewport-height of scroll regardless of the element's height, so the fade
+   now resolves quickly and consistently no matter how tall the section is.
+   Found on the deployed lower site, 2026-08-24. */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  animation: reveal-up 640ms var(--ease-out) both;
+}
+
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation: reveal-up linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -399,7 +468,7 @@ img {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-5) clamp(20px, 5vw, 72px);
+  padding: var(--space-4) clamp(20px, 5vw, 72px);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -448,7 +517,7 @@ img {
    ========================================================================= */
 
 .hero {
-  padding: clamp(44px, 5.5vw, 84px) clamp(20px, 5vw, 72px) 0;
+  padding: clamp(24px, 3vw, 44px) clamp(20px, 5vw, 72px) clamp(40px, 5vw, 64px);
   overflow: hidden;
 }
 
@@ -456,7 +525,7 @@ img {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(16px, 1.8vw, 22px);
+  gap: clamp(12px, 1.4vw, 18px);
   text-align: center;
   max-width: 1000px;
   margin: 0 auto;
@@ -469,13 +538,32 @@ img {
   max-width: 18ch;
 }
 
-/* The second half of the headline, deliberately in the accent: it is the
-   emotional half of the promise and should not read as body copy. */
+/* One phrase carries the accent color inline -- same emphasis pattern used in
+   eyebrows, links and PR highlights elsewhere on the page -- so the headline
+   isn't a flat block of ink. Deliberately NOT display:block: that was the old
+   forced second line, and re-adding it would undo the whitespace trim.
+
+   Italic for shape contrast against the roman weight around it -- still
+   Barlow, no second typeface introduced. The color starts on the brighter
+   --color-accent (also used for buttons/dots, ~3.4:1 against the page bg --
+   passes AA-large, and this is a transitional state anyway) and settles into
+   the deeper, text-safe --color-accent-text a beat after the page paints, so
+   the emphasis reads as arriving rather than just being printed that way --
+   orange to orange, not ink to orange.
+   prefers-reduced-motion (above) zeroes both animation-duration AND
+   animation-delay sitewide -- duration alone isn't enough here, since a
+   0.01ms transition still sits at the wrong starting color for the full
+   500ms delay otherwise. */
 .hero__title em {
-  display: block;
-  font-style: normal;
-  color: var(--color-accent-text);
-  margin-top: 0.14em;
+  font-style: italic;
+  color: var(--color-accent);
+  animation: hero-accent-in 700ms 500ms var(--ease-out) both;
+}
+
+@keyframes hero-accent-in {
+  to {
+    color: var(--color-accent-text);
+  }
 }
 
 .hero__lead {
@@ -485,31 +573,55 @@ img {
   max-width: 48ch;
 }
 
+/* Sits after .hero__devices now, not right under the lead paragraph -- the product shots are
+   the pitch, so the ask comes right after the proof rather than before it. margin-top clears
+   the devices' own mask-fade + reserved phone-overlap padding, which already puts some empty
+   space above this; the rest is deliberate, not doubled. */
+.hero__cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(12px, 1.4vw, 18px);
+  margin-top: clamp(16px, 2.2vw, 28px);
+  text-align: center;
+}
+
 .hero__actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-3);
-  margin-top: var(--space-1);
 }
 
 .hero__trust {
   font-size: var(--text-sm);
   color: var(--color-muted);
+  /* Explicit rather than relying on .hero__cta's inherited text-align: center --
+     this is the one piece of hero copy reported as showing up left-aligned on a
+     real device, not reproduced here in Chromium at any width tested. Making it
+     explicit costs nothing and rules out inheritance as the cause either way. */
+  text-align: center;
 }
 
 /* A tablet with a phone leaning on it, fading out at the bottom so the pair reads
    as rising out of the page instead of stopping at a hard edge. The mask is what
    does that -- an earlier version used a large upward glow and a hard overflow
-   clip, which produced a halo fighting the rounded corners. */
+   clip, which produced a halo fighting the rounded corners.
+
+   device-ipad.jpg is now cropped tight to its real content (no dead space below
+   the "Log set" button), so the fade has to start much later than it used to --
+   58% was tuned against a taller screenshot with blank space under the button;
+   against the tighter crop it washed the button itself out to ~60% opacity.
+   78% keeps everything the visitor can actually read fully solid and confines
+   the fade to the padding-bottom reserve where the phone hangs off. */
 .hero__devices {
   position: relative;
   width: min(820px, 100%);
-  margin: clamp(36px, 4.5vw, 64px) auto 0;
+  margin: clamp(20px, 2.8vw, 40px) auto 0;
   /* Room for the phone to hang below the tablet before the fade takes over. */
-  padding-bottom: clamp(28px, 5vw, 64px);
-  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+  padding-bottom: clamp(20px, 3.5vw, 44px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 78%, transparent 100%);
 }
 
 /* ============================================================================
@@ -634,6 +746,18 @@ img {
   .pillars {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  /* .hero's bottom padding and this section's own top padding both apply at
+     this boundary, same as at every section-to-section transition on the
+     page -- but every other transition has a visible eyebrow/heading near the
+     top that visually "catches" the gap. This section's <h2> is
+     visually-hidden, so the same numeric spacing that reads as a normal
+     breathing pause elsewhere reads as a chasm here. Trimmed for this one
+     transition only, via the adjacent-sibling selector rather than a class,
+     so no other section boundary is affected. */
+  .hero + .section {
+    padding-top: clamp(24px, 5vw, 56px);
+  }
 }
 
 .pillar {
@@ -659,6 +783,29 @@ img {
   line-height: 1.25;
 }
 
+/* Placed after the base .pillar rule (not inside the .pillars media query
+   above) deliberately: an equal-specificity ".pillar" declared later in the
+   file wins regardless of which one sits inside a matching media query, so a
+   copy of this made the mistake of living above the base rule was silently
+   overridden by it at every width. */
+@media (max-width: 900px) {
+  /* Icon-above-heading reads as a compact card in the 3-column desktop grid;
+     stacked in a single full-width mobile column it reads as an unrelated
+     icon floating over an unrelated headline. Icon and heading share a row
+     instead, with the paragraph spanning full width below both. */
+  .pillar {
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    column-gap: var(--space-4);
+    row-gap: var(--space-2);
+    align-items: center;
+  }
+
+  .pillar .prose {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ============================================================================
    Product figures — real screenshots of the running app
    ========================================================================= */
@@ -676,8 +823,18 @@ img {
   overflow: hidden;
 }
 
-.figure img {
+/* height:auto matters for video in a way it doesn't for img: the base `img { height: auto }`
+   rule up top covers images, but video has no such base rule, and its `height` HTML attribute
+   applies as a real (low-specificity) height unless something overrides it. Without this,
+   width:100% shrinks the box's width but the attribute pins height at its literal pixel value
+   regardless -- harmless-looking on desktop (a modest ~10% too tall, letterboxed), badly broken
+   on a narrow phone column (width shrinks much further, height doesn't move: nearly 2x too
+   tall, most of the card empty). Found on the deployed lower site, 2026-08-24. */
+.figure img,
+.figure video {
   width: 100%;
+  height: auto;
+  display: block;
 }
 
 .figure--quiet {
@@ -688,6 +845,14 @@ img {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+/* The trends figures are now full real screenshots (tall, portrait) rather than
+   cropped chart-only elements, so the stack is capped narrower than
+   .container--narrow or it dwarfs the rest of the page. */
+.figure-stack--trends {
+  max-width: 640px;
+  margin: 0 auto;
 }
 
 /* ============================================================================
@@ -930,6 +1095,114 @@ img {
   border-radius: 2px;
   background: var(--color-faint);
   vertical-align: middle;
+}
+
+/* Below this width the table's real column count (520px min-width, tuned for the
+   longest row label) no longer fits without horizontal scrolling. Rather than
+   scale text/padding down to force a fit, the table restacks into one card per
+   feature, each showing "Free" and "Pro" as labelled rows -- the same
+   information, read top-to-bottom instead of side-to-side. Column headers move
+   into generated content on each cell (data-label) rather than disappearing:
+   the <thead> stays in the DOM (visually hidden, not display:none) so the
+   Free/Pro column association a screen reader gets from the table markup on
+   wider screens isn't lost here, it's just carried differently. */
+@media (max-width: 620px) {
+  .compare-wrap {
+    overflow-x: visible;
+  }
+
+  .compare {
+    min-width: 0;
+  }
+
+  .compare,
+  .compare tbody,
+  .compare tr {
+    display: block;
+    width: 100%;
+  }
+
+  .compare thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .compare tbody tr {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .compare tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .compare th,
+  .compare td {
+    display: block;
+    width: auto;
+    padding: 0;
+    border-bottom: 0;
+    text-align: left;
+    background: transparent;
+  }
+
+  /* .compare td:not(:first-child) (above, unscoped -- it also sets the desktop
+     column widths) outranks a plain ".compare td" on specificity regardless of
+     source order, so without this the value column stays pinned at the desktop
+     20%/center rules and every value wraps into a ~60px sliver. Match its
+     selector to win the cascade instead of fighting it with !important. */
+  .compare td:not(:first-child) {
+    width: auto;
+    text-align: left;
+  }
+
+  .compare tbody th {
+    padding-bottom: 10px;
+    font-weight: 600;
+  }
+
+  .compare td {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    padding: 7px 0;
+    font-size: 15px;
+  }
+
+  .compare td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  /* The value itself -- text wrapped in .compare__value, or the bare svg/.dash
+     cells that were already a single child element. margin-left: auto pushes it
+     to the row's right edge without giving it flex-grow, which matters for the
+     icon cells: growing an <svg> flex item stretches its box past its 19x19
+     attributes and distorts the checkmark. Text values keep their natural
+     (shrink-to-fit) width and wrap right-aligned, so a multi-word value like
+     "Your whole family" reads as one tidy block instead of the ragged,
+     inconsistently-indented lines a bare wrapping text node produces as a flex
+     item with no width of its own. */
+  .compare td > * {
+    margin-left: auto;
+    text-align: right;
+  }
+
+  .compare .is-highlight {
+    background: rgba(212, 103, 62, 0.05);
+  }
 }
 
 /* ============================================================================
