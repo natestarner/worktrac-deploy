@@ -66,7 +66,14 @@ jobs:
               "APP_EMAIL_APP_URL=https://app.dev.huddle.fitness/app/log" \
               "E2E_TEST_SUPPORT_KEY=${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}" \
               "ADMIN_EMAILS=nate+huddleadmin@starner.co" \
-              "EMAIL_DELIVERY_WEBHOOK_KEY=${{ secrets.EMAIL_DELIVERY_WEBHOOK_KEY_LOWER }}"
+              "EMAIL_DELIVERY_WEBHOOK_KEY=${{ secrets.EMAIL_DELIVERY_WEBHOOK_KEY_LOWER }}" \
+              "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY_LOWER }}" \
+              "STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY_LOWER }}" \
+              "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET_LOWER }}" \
+              "STRIPE_PRICE_MONTHLY=${{ secrets.STRIPE_PRICE_MONTHLY_LOWER }}" \
+              "STRIPE_PRICE_YEARLY=${{ secrets.STRIPE_PRICE_YEARLY_LOWER }}" \
+              "STRIPE_RETURN_URL=https://app.dev.huddle.fitness/app/billing" \
+              "COMPED_EMAILS=${{ secrets.COMPED_EMAILS }}"
 
   deploy-frontend-lower:
     runs-on: ubuntu-latest
