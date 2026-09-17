@@ -307,12 +307,16 @@ img {
    Layout
    ========================================================================= */
 
+/* Block padding is ~20% down from clamp(56px, 7vw, 104px): 44px on a phone, 88px at desktop.
+   Inline padding is unchanged -- it is the page gutter, not section rhythm.
+   .section--tight moves with it, or it stops being tighter than .section and the one band that
+   is meant to read as compressed (the closing CTA) ends up the loosest thing on the page. */
 .section {
-  padding: clamp(56px, 7vw, 104px) clamp(20px, 5vw, 72px);
+  padding: clamp(44px, 6vw, 88px) clamp(20px, 5vw, 72px);
 }
 
 .section--tight {
-  padding-block: clamp(48px, 5.5vw, 88px);
+  padding-block: clamp(38px, 5vw, 74px);
 }
 
 .section--subtle {
@@ -383,6 +387,13 @@ img {
   margin-bottom: clamp(32px, 4vw, 56px);
 }
 
+/* The margin above is a gap between the heading and the body it introduces. In a section that is
+   only a heading -- for-trainers' "Why another one" -- there is no body, so it was 56px of dead
+   space stacked on top of the section's own bottom padding and the next section's top padding. */
+.section__head:last-child {
+  margin-bottom: 0;
+}
+
 .prose {
   font-size: clamp(17px, 1.4vw, 18px);
   line-height: 1.6;
@@ -411,6 +422,11 @@ img {
   font-size: 18px;
   font-weight: 600;
   line-height: 1;
+  /* A button label never breaks mid-phrase. Without this, the header's flex row shrinks the CTA
+     below its content width at phone sizes and the label wraps INSIDE the pill -- "Start a
+     practice" came apart onto two lines at every width up to 430px. Making it nowrap is what
+     turns that silent squeeze into a width the layout below has to actually budget for. */
+  white-space: nowrap;
   cursor: pointer;
   transition: background var(--dur-base) var(--ease-out),
     border-color var(--dur-base) var(--ease-out);
@@ -528,6 +544,8 @@ img {
   font-size: 16px;
   font-weight: 500;
   color: var(--color-muted);
+  /* Same reason as .btn: "Log in" was breaking after "Log" on every page at phone widths. */
+  white-space: nowrap;
 }
 
 .site-nav__link--strong {
@@ -537,6 +555,64 @@ img {
 
 @media (max-width: 760px) {
   .site-nav__link--optional {
+    display: none;
+  }
+}
+
+/* Phones: the whole lockup shrinks so the NAME can stay.
+   With nowrap above, this row has a real width budget, and at full size it does not fit a phone:
+   brand (141px) + "Log in" (43px) + the two gaps (32px) claim 216 of the 280px available at 320px.
+   Hiding .brand__word buys the most room in one move and was the first fix here -- but at a
+   460px breakpoint that silently removed the word "Huddle" from the header of EVERY iPhone in
+   portrait (375-440px), which is not a trade worth making for slack nobody needed.
+
+   Shrinking each part instead keeps the name at every width a current phone actually reports.
+   Measured on for-trainers.html, the narrowest-budget page because it carries the longest CTA,
+   with the webfont BLOCKED so the wider fallback stack is what is being measured:
+
+     360px +18px · 375px +33px · 390px +48px · 414px +70px · 430px +85px
+
+   The fallback matters and is not hypothetical: Barlow loads with `display=swap`, so the first
+   paint is always the fallback, and it renders "Huddle" ~8px wider than Barlow does. Tuning
+   against the loaded font alone left 360px with +6px, which is inside that margin.
+
+   Re-measure this budget before adding anything to this row, and measure it with fonts blocked. */
+@media (max-width: 460px) {
+  .site-header {
+    gap: var(--space-3);
+  }
+
+  .brand {
+    gap: var(--space-2);
+  }
+
+  /* height: auto keeps the aspect ratio from the SVG's own 52x47 attributes. */
+  .brand__mark {
+    width: 42px;
+    height: auto;
+  }
+
+  .brand__word {
+    font-size: 22px;
+  }
+
+  .site-nav {
+    gap: var(--space-3);
+  }
+
+  .site-nav .btn--small {
+    padding: 0 14px;
+  }
+}
+
+/* Below 360px no arrangement fits: 320px leaves 64px for a CTA needing at least 82px even if its
+   label were the single word "Start", and shrinking type far enough to close that gap costs more
+   than the word is worth. The mark alone carries the brand there -- it is the distinctive half of
+   the lockup, `aria-label="Huddle home"` keeps the link's accessible name, and the wordmark is
+   still in the footer on every page. 359px rather than a device width because it is the measured
+   floor, not a guess: 360px is the narrowest viewport any current phone reports. */
+@media (max-width: 359px) {
+  .brand__word {
     display: none;
   }
 }
@@ -622,7 +698,7 @@ img {
   gap: var(--space-3);
 }
 
-/* The hero's tertiary action. Demoted from a third button when "Go Pro" joined "Start free":
+/* The hero's tertiary action. Demoted from a third button when "Go Plus" joined "Start free":
    three buttons compete with each other, and at 390px they stack into most of the fold. A text
    link keeps the scroll cue without pretending to be a peer of the two real CTAs.
 
@@ -1175,11 +1251,11 @@ img {
 /* Below this width the table's real column count (520px min-width, tuned for the
    longest row label) no longer fits without horizontal scrolling. Rather than
    scale text/padding down to force a fit, the table restacks into one card per
-   feature, each showing "Free" and "Pro" as labelled rows -- the same
+   feature, each showing "Free" and "Plus" as labelled rows -- the same
    information, read top-to-bottom instead of side-to-side. Column headers move
    into generated content on each cell (data-label) rather than disappearing:
    the <thead> stays in the DOM (visually hidden, not display:none) so the
-   Free/Pro column association a screen reader gets from the table markup on
+   Free/Plus column association a screen reader gets from the table markup on
    wider screens isn't lost here, it's just carried differently. */
 @media (max-width: 620px) {
   .compare-wrap {
@@ -1362,10 +1438,29 @@ img {
   margin-left: var(--space-2);
 }
 
+/* The four-tier comparison on /pricing. .compare's own layout is built for three columns, and a
+   fourth squeezes the feature name to nothing on a laptop -- so the table scrolls sideways inside
+   .compare-wrap rather than compressing. That is the one sanctioned horizontal scroll on this site:
+   a table may scroll in its own container, the PAGE may not.
+
+   Below 720px .compare flattens into stacked rows via td::before { content: attr(data-label) }, so
+   this min-width must not apply there -- the flattened form has no columns to be narrow. */
+@media (min-width: 721px) {
+  .compare--four {
+    min-width: 640px;
+  }
+}
+
 .site-footer__links {
   display: flex;
   align-items: center;
-  gap: 28px;
+  /* Wraps, and that is not cosmetic: this was a nowrap row at five links, and the sixth pushed the
+     footer past 390px -- which shows up as the whole PAGE scrolling horizontally, not as a wrapped
+     footer, because nothing here clips. Caught by landing.spec.ts's horizontal-scroll assertion at
+     mobile width. Any further link would have done the same. */
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 28px;
 }
 
 .site-footer__links a {
