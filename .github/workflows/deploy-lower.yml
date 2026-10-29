@@ -93,6 +93,15 @@ jobs:
       - name: Apply environment frontend config
         run: cp config/lower/frontend-env.json frontend-build/config.json
 
+      # index.html's share tags say __APP_ORIGIN__; link previews read the raw HTML, so they can't
+      # come from config.json. The same step runs in deploy-prod.yml.
+      - name: Fill this environment's origins
+        uses: ./.github/actions/site-origins
+        with:
+          mode: fill
+          environment: lower
+          directory: frontend-build
+
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
@@ -100,6 +109,14 @@ jobs:
           action: "upload"
           app_location: "frontend-build"
           skip_app_build: true
+
+      - name: Check the live app names only this environment
+        uses: ./.github/actions/site-origins
+        with:
+          mode: verify
+          environment: lower
+          origin-key: APP_ORIGIN
+          paths: "/"
 
   # The marketing site (huddle.fitness / dev.huddle.fitness) is its own free-tier Static Web
   # App, deployed independently of the main app -- so this job is deliberately NOT in anything
@@ -115,6 +132,15 @@ jobs:
       - name: Apply environment robots.txt
         run: cp config/lower/marketing-robots.txt marketing-build/robots.txt
 
+      # Every absolute URL on the site (canonical, share image, CTAs, sitemap) and its robots meta are
+      # placeholders, so dev.huddle.fitness names only lower. The same step runs in deploy-prod.yml.
+      - name: Fill this environment's origins
+        uses: ./.github/actions/site-origins
+        with:
+          mode: fill
+          environment: lower
+          directory: marketing-build
+
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
@@ -122,6 +148,14 @@ jobs:
           action: "upload"
           app_location: "marketing-build"
           skip_app_build: true
+
+      # What a link preview gets: each live page names only lower, and its share image is an image.
+      - name: Check the live pages name only this environment
+        uses: ./.github/actions/site-origins
+        with:
+          mode: verify
+          environment: lower
+          paths: "/ /for-trainers.html /pricing.html /privacy.html /terms.html /support.html"
 
   smoke-tests:
     runs-on: ubuntu-latest
