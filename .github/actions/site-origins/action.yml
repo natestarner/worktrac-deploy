@@ -1,0 +1,68 @@
+name: Per-environment origins
+description: >
+  Fill this environment's origins into a build before upload, or check the live pages after it.
+  The release ships the scripts (tools/, copied from worktrac-source's scripts/ by promote-to-lower),
+  so the fill always matches the placeholders it fills.
+
+inputs:
+  mode:
+    description: "fill (before upload) or verify (after upload)"
+    required: true
+  environment:
+    description: "lower or production -- picks config/<environment>/site-origins.env"
+    required: true
+  directory:
+    description: "fill: the build directory to fill (frontend-build or marketing-build)"
+    required: false
+    default: ""
+  paths:
+    description: "verify: space-separated page paths, appended to the origin named by origin-key"
+    required: false
+    default: "/"
+  origin-key:
+    description: "verify: SITE_ORIGIN for the marketing site, APP_ORIGIN for the app"
+    required: false
+    default: SITE_ORIGIN
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        ENV_FILE: config/${{ inputs.environment }}/site-origins.env
+        DIR: ${{ inputs.directory }}
+        PATHS: ${{ inputs.paths }}
+        ORIGIN_KEY: ${{ inputs.origin-key }}
+      run: |
+        set -euo pipefail
+        [ -f "$ENV_FILE" ] || { echo "::error::$ENV_FILE is missing"; exit 1; }
+        case "$MODE" in
+          fill)
+            if [ -f tools/fill-site-origins.sh ]; then
+              bash tools/fill-site-origins.sh "$ENV_FILE" "$DIR"
+            # A release from before 2026-10-29 has neither placeholders nor tools/. Uploading one of
+            # those as-is is correct; uploading placeholders unfilled never is. This branch can go
+            # once both environments have deployed a release that carries tools/.
+            elif grep -rqE '__(SITE_ORIGIN|APP_ORIGIN|SITE_ROBOTS)__' "$DIR" --include='*.html' --include='*.xml' --include='*.txt'; then
+              echo "::error::$DIR holds origin placeholders but this release shipped no tools/fill-site-origins.sh"
+              exit 1
+            else
+              echo "This release predates per-environment origins; nothing to fill."
+            fi
+            ;;
+          verify)
+            if [ ! -f tools/verify-site-origins.sh ]; then
+              echo "This release predates verify-site-origins.sh; nothing to verify."
+              exit 0
+            fi
+            origin=$(grep -E "^$ORIGIN_KEY=" "$ENV_FILE" | cut -d= -f2- | tr -d '\r')
+            urls=()
+            for p in $PATHS; do urls+=("$origin$p"); done
+            bash tools/verify-site-origins.sh "$ENV_FILE" "${urls[@]}"
+            ;;
+          *)
+            echo "::error::mode must be fill or verify, got '$MODE'"
+            exit 1
+            ;;
+        esac
