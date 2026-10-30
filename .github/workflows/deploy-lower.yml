@@ -81,6 +81,7 @@ jobs:
               "STRIPE_PRICE_PRO_UNLIMITED_MONTH=${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_MONTH_LOWER }}" \
               "STRIPE_PRICE_PRO_UNLIMITED_YEAR=${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_YEAR_LOWER }}" \
               "STRIPE_RETURN_URL=https://app.dev.huddle.fitness/app/billing" \
+              "NATIVE_APP_STORE_URL=https://apps.apple.com/us/app/huddle-workout-tracker/id6826555272" \
               "COMPED_EMAILS=${{ secrets.COMPED_EMAILS }}"
 
   deploy-frontend-lower:
