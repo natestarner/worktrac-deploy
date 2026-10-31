@@ -1,0 +1,1 @@
+import{t as e}from"./index-BL-40ueh.js";var t=class extends e{async canOpenUrl(e){return{value:!0}}async openUrl(e){return window.open(e.url,`_blank`),{completed:!0}}};export{t as AppLauncherWeb};
