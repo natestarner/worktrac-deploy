@@ -284,8 +284,9 @@ jobs:
           retention-days: 1
 
   # New and changed tests, proven against the real environment on their FIRST deploy: every test in a
-  # spec that changed since the last GREEN lower deploy, or that imports a file that changed
-  # (worktrac-source scripts/select-changed-e2e.sh, which uses Playwright's own --only-changed).
+  # spec FILE that changed since the last GREEN lower deploy, or that imports a file that changed
+  # (worktrac-source scripts/select-changed-e2e.sh). By file, not Playwright's --only-changed, which
+  # attributes parity tests to support/parity.ts and so skipped them (2 of 6 on its first run).
   # Beside the @critical shards, not after them, and part of the same gate.
   #
   # Burn-in: a small selection runs each test 3 times, because a new test that passes once can still
@@ -360,7 +361,7 @@ jobs:
         if: steps.select.outputs.count != '0'
         run: |
           cd source/e2e
-          npx playwright test --only-changed=${{ steps.select.outputs.base }} --repeat-each=${{ steps.select.outputs.repeats }}
+          npx playwright test ${{ steps.select.outputs.files }} --repeat-each=${{ steps.select.outputs.repeats }}
         env:
           E2E_BASE_URL: https://black-flower-0c9bf9d0f.7.azurestaticapps.net
           E2E_TEST_SUPPORT_KEY: ${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}
