@@ -180,9 +180,27 @@ jobs:
           label: Frontend
           timeout-seconds: '120'
 
-  e2e-tests:
+  # The per-merge e2e gate: only the tests tagged @critical (worktrac-source e2e-tests.md,
+  # "Tiers"). The WHOLE suite already ran before the merge (locally, /deploy-to-lower step 3) and
+  # runs again on lower every night, in Chrome and WebKit (worktrac-source
+  # .github/workflows/lower-e2e-nightly.yml). What this job adds is the real environment -- Azure
+  # latency, cold starts, the production build, the real email send -- on what must never break.
+  #
+  # Two shards x E2E_WORKERS=4: the same 8 concurrent workers against lower's one backend as the
+  # single 8-worker job it replaced, on twice the runner CPU. E2E_LOAD_WORKERS=8 keeps each test's
+  # time budget sized for that total load (playwright.config.ts). `e2e-tests` below merges the
+  # shards and is the gate.
+  #
+  # Checks out worktrac-source's default branch, unpinned (as before), so the specs and the
+  # @critical tags are main's. A --grep that matches nothing fails the run ("No tests found"), so
+  # the gate can't silently become empty.
+  e2e-critical:
     runs-on: ubuntu-latest
     needs: [deploy-backend-lower, deploy-frontend-lower]
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
 
     steps:
       - name: Checkout source repo (for e2e tests)
@@ -246,13 +264,64 @@ jobs:
             sleep 2
           done
 
-      - name: Run E2E tests against lower environment
+      - name: Run @critical E2E tests against lower environment (shard ${{ matrix.shard }}/2)
         run: |
           cd source/e2e
-          npx playwright test
+          npx playwright test --grep @critical --shard=${{ matrix.shard }}/2
         env:
           E2E_BASE_URL: https://black-flower-0c9bf9d0f.7.azurestaticapps.net
           E2E_TEST_SUPPORT_KEY: ${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}
+          E2E_WORKERS: '4'
+          E2E_LOAD_WORKERS: '8'
+          E2E_BLOB: '1'
+
+      - name: Upload blob report
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: source/e2e/blob-report/
+          retention-days: 1
+
+  # Joins the shards into the same two artifacts a single run produced -- `playwright-report` and
+  # `e2e-results-json` -- so nothing that reads a lower run can tell it was sharded, and gates on
+  # the shards' result. Runs whatever they concluded (a red run still gets its report), but not
+  # when the deploy itself never happened.
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: [e2e-critical]
+    if: ${{ !cancelled() && needs.e2e-critical.result != 'skipped' }}
+
+    steps:
+      - name: Checkout source repo (merge config + flake summary)
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository_owner }}/worktrac-source
+          path: source
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: source/e2e/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd source/e2e
+          npm ci
+
+      - name: Download shard reports
+        uses: actions/download-artifact@v8
+        with:
+          pattern: blob-report-*
+          path: source/e2e/all-blob-reports
+          merge-multiple: true
+
+      - name: Merge shard reports
+        run: |
+          cd source/e2e
+          npx playwright merge-reports --config playwright.merge.config.ts all-blob-reports
 
       # Playwright runs with retries: 2 here, so a test that fails and then passes is recorded
       # `flaky` while this job -- and the whole run -- still reports success. That means a green
@@ -293,85 +362,11 @@ jobs:
           path: source/e2e/test-results/results.json
           retention-days: 90
 
-  # The same suite in Safari's engine (WebKit) at iPhone size -- what the App Store app's WKWebView
-  # and Safari both run (worktrac-source e2e-tests.md, "WebKit"). Selected by E2E_ENGINE=webkit;
-  # playwright.config.ts runs exactly one engine per run.
-  #
-  # - NON-BLOCKING while it builds a track record: continue-on-error keeps a red result from failing
-  #   the deploy. Promote it (drop continue-on-error) once it has earned that.
-  # - AFTER e2e-tests, never beside it: lower is one Container App on a 5-DTU database, and two
-  #   suites at once would saturate it and make BOTH flaky. Runs whatever e2e-tests concluded, but
-  #   not when the deploy itself never happened.
-  e2e-tests-webkit:
-    runs-on: ubuntu-latest
-    needs: [e2e-tests]
-    if: ${{ !cancelled() && needs.e2e-tests.result != 'skipped' }}
-    continue-on-error: true
-
-    steps:
-      - name: Checkout source repo (for e2e tests)
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.repository_owner }}/worktrac-source
-          path: source
-
-      - name: Checkout deploy repo (for the wait-for-url action)
-        uses: actions/checkout@v7
-        with:
-          path: deploy
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: source/e2e/package-lock.json
-
-      - name: Install dependencies
-        run: |
-          cd source/e2e
-          npm ci
-
-      - name: Install Playwright WebKit
-        run: |
-          cd source/e2e
-          npx playwright install webkit --with-deps
-
-      - name: Wait for backend to be ready
-        uses: ./deploy/.github/actions/wait-for-url
-        with:
-          url: https://worktrac-backend-lower.whitehill-3dc27bb3.eastus.azurecontainerapps.io/actuator/health
-          label: Backend
-          timeout-seconds: '180'
-
-      - name: Run E2E tests in WebKit against lower environment
-        run: |
-          cd source/e2e
-          npx playwright test
-        env:
-          E2E_ENGINE: webkit
-          E2E_BASE_URL: https://black-flower-0c9bf9d0f.7.azurestaticapps.net
-          E2E_TEST_SUPPORT_KEY: ${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}
-
-      - name: Summarize WebKit e2e results (flaky + failed)
+      # merge-reports succeeds whatever the tests did, so the verdict is the shards'.
+      - name: Gate on the shards
         if: ${{ !cancelled() }}
-        continue-on-error: true
         run: |
-          node source/e2e/scripts/flake-summary.mjs \
-            source/e2e/test-results/results.json >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload Playwright report (WebKit)
-        uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        with:
-          name: playwright-report-webkit
-          path: source/e2e/playwright-report/
-          retention-days: 90
-
-      - name: Upload machine-readable e2e results (WebKit)
-        uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        with:
-          name: e2e-results-json-webkit
-          path: source/e2e/test-results/results.json
-          retention-days: 90
+          if [ "${{ needs.e2e-critical.result }}" != "success" ]; then
+            echo "::error::@critical e2e failed on lower (shards: ${{ needs.e2e-critical.result }}) -- see the report above."
+            exit 1
+          fi
