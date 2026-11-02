@@ -31,6 +31,11 @@ param scaleRules array = []
 @description('Container probes, or [] to leave the platform default.')
 param probes array = []
 
+@description('''Seconds a stopping replica gets to finish in-flight work before it is killed, or null to
+leave the platform default. Spring's own drain is 25s (spring.lifecycle.timeout-per-shutdown-phase),
+so this must stay above it.''')
+param terminationGracePeriodSeconds int?
+
 @description('Custom hostnames bound to this app: [{ name, certificateName }].')
 param customDomains array = []
 
@@ -99,6 +104,7 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
       ]
     }
     template: {
+      terminationGracePeriodSeconds: terminationGracePeriodSeconds
       containers: [
         {
           name: appName
