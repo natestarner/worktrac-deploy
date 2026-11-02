@@ -16,7 +16,23 @@ def walk(changes, prefix):
         if children:
             yield from walk(children, path + ".")
         else:
-            yield f"  {change['propertyChangeType']:<8} {path}"
+            yield f"  {change['propertyChangeType']:<8} {path}{note(change)}"
+
+
+def note(change):
+    """Say what kind of difference this is, without revealing either value."""
+    if change["propertyChangeType"] != "Modify":
+        return ""
+    before, after = change.get("before"), change.get("after")
+    if before == after:
+        return "  (identical value)"
+    if isinstance(after, str) and after.startswith("[") and "parameters(" in after:
+        # A secure parameter: what-if leaves it unevaluated, so it cannot compare it.
+        return "  (secure value: what-if cannot compare it)"
+    if isinstance(before, str) and isinstance(after, str):
+        # The length difference (not the lengths) spots a stray newline or space.
+        return f"  (values differ; length {len(after) - len(before):+d})"
+    return "  (values differ)"
 
 
 def main(path):
