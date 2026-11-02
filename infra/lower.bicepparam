@@ -50,6 +50,10 @@ param probes = [
   }
 ]
 
+// Above Spring's 25s graceful drain, so a replica stopped by a deploy or a scale-in finishes its
+// in-flight requests (and claims nothing new from the outbox) before it is killed.
+param terminationGracePeriodSeconds = 30
+
 param customDomains = [
   { name: 'api.dev.huddle.fitness', certificateName: 'mc-worktrac-env-api-dev-huddle-f-7336' }
   { name: 'worktrac-api-dev.starnerconsulting.co', certificateName: 'mc-worktrac-env-worktrac-api-dev-2523' }
