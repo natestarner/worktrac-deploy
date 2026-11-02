@@ -6,17 +6,19 @@ environment's values. Secrets are never in these files: they're read from enviro
 variables that the workflows fill from GitHub secrets, and a missing one fails the build
 rather than deploying an empty value.
 
-## Status: adoption (preview only)
+## Status
 
-Nothing applies these files yet. The `Infra — Preview Bicep changes` workflow runs
-`az deployment group what-if` on every PR touching `infra/`. It reports which settings
-applying the files would change, by path and never by value. what-if can't compare secret
-values, so it lists every secret env var as changed; a second step compares those itself
-(`tools/compare-secret-env.py`) and prints only "match" or "MISMATCH" per name. Adoption is
-done when both environments show **only those uncomparable secrets in what-if, and every
-secret matches**. At that point the files describe the live apps exactly.
-Only then will a later PR switch the deploy workflows from `az containerapp update` to applying
-these files.
+- **Lower:** every deploy applies these files (`deploy-lower.yml`, step "Deploy backend (apply
+  Bicep)"). It logs the what-if summary first, as a record of what the apply changed.
+- **Prod:** not yet. `deploy-prod.yml` (on the `production` branch) still runs
+  `az containerapp update`. Its switch is a separate PR to `production`.
+
+The `Infra — Preview Bicep changes` workflow runs `az deployment group what-if` on every PR
+touching `infra/`. It reports which settings applying the files would change, by path and never
+by value. what-if can't compare secret values, so it lists every secret env var as changed; a
+second step compares those itself (`tools/compare-secret-env.py`) and prints only "match" or
+"MISMATCH" per name. Adoption was proven on 2026-11-02: both apps showed only those
+uncomparable secrets, and every secret matched.
 
 ## Rules
 
@@ -24,7 +26,8 @@ these files.
   apply, so an env var, probe or scale rule missing from here is deleted from the live app.
 - **Keep env vars in the live order.** what-if compares arrays by position, so a reordering
   shows as a change.
-- **Change infra here, not in the portal or with `az`.** A hand-made change is overwritten
+- **Change infra here, not in the portal or with `az`, and that includes env vars, which no longer
+  live in `deploy-lower.yml`.** A hand-made change is overwritten
   by the next apply. The preview shows any drift.
 
 ## Previewing locally

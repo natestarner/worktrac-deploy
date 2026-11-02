@@ -35,54 +35,54 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Must run BEFORE the image update below: if the Container App doesn't already
-      # have valid GHCR pull credentials, the new revision's image pull fails silently
-      # (the `containerapp update` command itself still reports success) and Azure keeps
-      # serving whatever revision was previously running -- which is exactly what made
-      # every backend route except /actuator/health look permanently 404, unchanged
-      # across multiple deploys that each looked "successful."
-      - name: Configure GHCR pull credentials
+      # The whole Container App -- image, size, replicas, probes, domains and every env var --
+      # comes from infra/backend.bicep + infra/lower.bicepparam. Anything not in those files is
+      # removed from the live app on this apply, so change settings there, not in the portal.
+      #
+      # The GHCR pull credentials go in the same apply as the image. They used to need a separate
+      # step that ran first: without valid credentials a new revision's image pull failed
+      # silently and Azure kept serving the old revision, which once made every route except
+      # /actuator/health look permanently 404. Applying both together means the revision is
+      # never created without them, and a failed revision now fails this step.
+      - name: Deploy backend (apply Bicep)
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.IMAGE_TAG }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          COMPED_EMAILS: ${{ secrets.COMPED_EMAILS }}
+          SQL_CONNECTION_STRING_LOWER: ${{ secrets.SQL_CONNECTION_STRING_LOWER }}
+          APP_JWT_SECRET_LOWER: ${{ secrets.APP_JWT_SECRET_LOWER }}
+          ACS_EMAIL_CONNECTION_STRING_LOWER: ${{ secrets.ACS_EMAIL_CONNECTION_STRING_LOWER }}
+          E2E_TEST_SUPPORT_KEY_LOWER: ${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}
+          EMAIL_DELIVERY_WEBHOOK_KEY_LOWER: ${{ secrets.EMAIL_DELIVERY_WEBHOOK_KEY_LOWER }}
+          STRIPE_SECRET_KEY_LOWER: ${{ secrets.STRIPE_SECRET_KEY_LOWER }}
+          STRIPE_PUBLISHABLE_KEY_LOWER: ${{ secrets.STRIPE_PUBLISHABLE_KEY_LOWER }}
+          STRIPE_WEBHOOK_SECRET_LOWER: ${{ secrets.STRIPE_WEBHOOK_SECRET_LOWER }}
+          STRIPE_PRICE_MONTHLY_LOWER: ${{ secrets.STRIPE_PRICE_MONTHLY_LOWER }}
+          STRIPE_PRICE_YEARLY_LOWER: ${{ secrets.STRIPE_PRICE_YEARLY_LOWER }}
+          STRIPE_PRICE_PRO_STARTER_MONTH_LOWER: ${{ secrets.STRIPE_PRICE_PRO_STARTER_MONTH_LOWER }}
+          STRIPE_PRICE_PRO_STARTER_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_STARTER_YEAR_LOWER }}
+          STRIPE_PRICE_PRO_STUDIO_MONTH_LOWER: ${{ secrets.STRIPE_PRICE_PRO_STUDIO_MONTH_LOWER }}
+          STRIPE_PRICE_PRO_STUDIO_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_STUDIO_YEAR_LOWER }}
+          STRIPE_PRICE_PRO_PRACTICE_MONTH_LOWER: ${{ secrets.STRIPE_PRICE_PRO_PRACTICE_MONTH_LOWER }}
+          STRIPE_PRICE_PRO_PRACTICE_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_PRACTICE_YEAR_LOWER }}
+          STRIPE_PRICE_PRO_UNLIMITED_MONTH_LOWER: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_MONTH_LOWER }}
+          STRIPE_PRICE_PRO_UNLIMITED_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_YEAR_LOWER }}
         run: |
-          az containerapp registry set \
-            --name worktrac-backend-lower \
+          # A record of what this apply changes: setting paths only, never values. A normal deploy
+          # shows the image plus the secret env vars (what-if can't compare secrets).
+          az deployment group what-if \
             --resource-group worktrac-rg \
-            --server ghcr.io \
-            --username ${{ github.repository_owner }} \
-            --password ${{ secrets.GHCR_TOKEN }}
+            --name "backend-lower-preview-${{ github.run_id }}" \
+            --parameters infra/lower.bicepparam \
+            --no-pretty-print > whatif.json
+          python3 tools/whatif-summary.py whatif.json
+          rm -f whatif.json
 
-      - name: Deploy backend to Container Apps
-        run: |
-          az containerapp update \
-            --name worktrac-backend-lower \
+          az deployment group create \
             --resource-group worktrac-rg \
-            --image ghcr.io/${{ github.repository_owner }}/worktrac-backend:${{ steps.tag.outputs.IMAGE_TAG }} \
-            --set-env-vars \
-              "SPRING_DATASOURCE_URL=${{ secrets.SQL_CONNECTION_STRING_LOWER }}" \
-              "SPRING_PROFILES_ACTIVE=lower" \
-              "CORS_ALLOWED_ORIGINS=https://black-flower-0c9bf9d0f.7.azurestaticapps.net,https://worktrac-dev.starnerconsulting.co,https://app.dev.huddle.fitness,capacitor://localhost" \
-              "APP_JWT_SECRET=${{ secrets.APP_JWT_SECRET_LOWER }}" \
-              "ACS_EMAIL_CONNECTION_STRING=${{ secrets.ACS_EMAIL_CONNECTION_STRING_LOWER }}" \
-              "ACS_EMAIL_SENDER_ADDRESS=DoNotReply@huddle.fitness" \
-              "APP_EMAIL_APP_URL=https://app.dev.huddle.fitness/app/log" \
-              "E2E_TEST_SUPPORT_KEY=${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}" \
-              "ADMIN_EMAILS=nate+huddleadmin@starner.co" \
-              "EMAIL_DELIVERY_WEBHOOK_KEY=${{ secrets.EMAIL_DELIVERY_WEBHOOK_KEY_LOWER }}" \
-              "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY_LOWER }}" \
-              "STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY_LOWER }}" \
-              "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET_LOWER }}" \
-              "STRIPE_PRICE_MONTHLY=${{ secrets.STRIPE_PRICE_MONTHLY_LOWER }}" \
-              "STRIPE_PRICE_YEARLY=${{ secrets.STRIPE_PRICE_YEARLY_LOWER }}" \
-              "STRIPE_PRICE_PRO_STARTER_MONTH=${{ secrets.STRIPE_PRICE_PRO_STARTER_MONTH_LOWER }}" \
-              "STRIPE_PRICE_PRO_STARTER_YEAR=${{ secrets.STRIPE_PRICE_PRO_STARTER_YEAR_LOWER }}" \
-              "STRIPE_PRICE_PRO_STUDIO_MONTH=${{ secrets.STRIPE_PRICE_PRO_STUDIO_MONTH_LOWER }}" \
-              "STRIPE_PRICE_PRO_STUDIO_YEAR=${{ secrets.STRIPE_PRICE_PRO_STUDIO_YEAR_LOWER }}" \
-              "STRIPE_PRICE_PRO_PRACTICE_MONTH=${{ secrets.STRIPE_PRICE_PRO_PRACTICE_MONTH_LOWER }}" \
-              "STRIPE_PRICE_PRO_PRACTICE_YEAR=${{ secrets.STRIPE_PRICE_PRO_PRACTICE_YEAR_LOWER }}" \
-              "STRIPE_PRICE_PRO_UNLIMITED_MONTH=${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_MONTH_LOWER }}" \
-              "STRIPE_PRICE_PRO_UNLIMITED_YEAR=${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_YEAR_LOWER }}" \
-              "STRIPE_RETURN_URL=https://app.dev.huddle.fitness/app/billing" \
-              "NATIVE_APP_STORE_URL=https://apps.apple.com/us/app/huddle-workout-tracker/id6826555272" \
-              "COMPED_EMAILS=${{ secrets.COMPED_EMAILS }}"
+            --name "backend-lower-${{ github.run_id }}" \
+            --parameters infra/lower.bicepparam \
+            --output none
 
   deploy-frontend-lower:
     runs-on: ubuntu-latest
