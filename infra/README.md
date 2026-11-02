@@ -10,8 +10,11 @@ rather than deploying an empty value.
 
 Nothing applies these files yet. The `Infra — Preview Bicep changes` workflow runs
 `az deployment group what-if` on every PR touching `infra/`. It reports which settings
-applying the files would change, by path and never by value. Adoption is done when both
-environments report **no changes**: at that point the files describe the live apps exactly.
+applying the files would change, by path and never by value. what-if can't compare secret
+values, so it lists every secret env var as changed; a second step compares those itself
+(`tools/compare-secret-env.py`) and prints only "match" or "MISMATCH" per name. Adoption is
+done when both environments show **only those uncomparable secrets in what-if, and every
+secret matches**. At that point the files describe the live apps exactly.
 Only then will a later PR switch the deploy workflows from `az containerapp update` to applying
 these files.
 
