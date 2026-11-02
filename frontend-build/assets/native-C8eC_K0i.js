@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/native-DzPztgle.js","assets/index-BEuK0xX2.js","assets/index-Fhy8F6o0.css"])))=>i.map(i=>d[i]);
+import{i as e,r as t}from"./index-BEuK0xX2.js";var n=t(`AppLauncher`,{web:()=>e(()=>import(`./native-DzPztgle.js`).then(e=>new e.AppLauncherWeb),__vite__mapDeps([0,1,2]))});export{n as AppLauncher};
