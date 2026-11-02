@@ -9,32 +9,39 @@ param image = 'ghcr.io/natestarner/worktrac-backend:${readEnvironmentVariable('I
 param cpu = '1'
 param memory = '2Gi'
 
-// Scales to zero when idle; one replica at most.
-param minReplicas = 0
-param maxReplicas = 1
-
+// TEMPORARY (2026-11-02): fixed at two replicas for the Phase I multi-replica test window, so
+// every request pattern crosses replicas. Revert to min 0 / max 1 (scale to zero) when it ends.
+param minReplicas = 2
+param maxReplicas = 2
+// The app's own health groups (application.yml, management.endpoint.health.group), not a TCP
+// check: readiness holds a replica out of rotation until it has warmed up and takes it out while
+// it drains on shutdown. Neither group checks the database, so a DB outage keeps every replica
+// answering honest 503s instead of restarting or de-routing them all (resilience.md, axis B).
+//
+// Liveness is deliberately slow to give up (6 x 10s): its endpoint shares Tomcat's threads with
+// the API, so a load spike that delays it for half a minute must not restart a healthy replica.
 param probes = [
   {
     type: 'Liveness'
-    tcpSocket: { port: 8080 }
+    httpGet: { path: '/actuator/health/liveness', port: 8080 }
     initialDelaySeconds: 0
     periodSeconds: 10
     timeoutSeconds: 5
-    failureThreshold: 3
+    failureThreshold: 6
     successThreshold: 1
   }
   {
     type: 'Readiness'
-    tcpSocket: { port: 8080 }
+    httpGet: { path: '/actuator/health/readiness', port: 8080 }
     initialDelaySeconds: 0
-    periodSeconds: 5
-    timeoutSeconds: 5
-    failureThreshold: 48
+    periodSeconds: 3
+    timeoutSeconds: 3
+    failureThreshold: 5
     successThreshold: 1
   }
   {
     type: 'Startup'
-    tcpSocket: { port: 8080 }
+    httpGet: { path: '/actuator/health/liveness', port: 8080 }
     initialDelaySeconds: 1
     periodSeconds: 1
     timeoutSeconds: 3
