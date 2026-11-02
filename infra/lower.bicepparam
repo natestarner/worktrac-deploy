@@ -9,10 +9,10 @@ param image = 'ghcr.io/natestarner/worktrac-backend:${readEnvironmentVariable('I
 param cpu = '1'
 param memory = '2Gi'
 
-// TEMPORARY (2026-11-02): fixed at two replicas for the Phase I multi-replica test window, so
-// every request pattern crosses replicas. Revert to min 0 / max 1 (scale to zero) when it ends.
-param minReplicas = 2
-param maxReplicas = 2
+// Scales to zero when idle; one replica at most. (Ran at a fixed 2 for the Phase I multi-replica
+// test window on 2026-11-02: full e2e, the barrage, and a deploy swapping both replicas, all green.)
+param minReplicas = 0
+param maxReplicas = 1
 // The app's own health groups (application.yml, management.endpoint.health.group), not a TCP
 // check: readiness holds a replica out of rotation until it has warmed up and takes it out while
 // it drains on shutdown. Neither group checks the database, so a DB outage keeps every replica
