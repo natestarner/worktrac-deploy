@@ -4,6 +4,13 @@ on:
   push:
     branches: [production]
 
+# One production deploy at a time, in order. Two pushes in quick succession (a promotion and a
+# config fix) would otherwise race on which image and which env vars end up live. Never cancels a
+# run in progress: a half-applied production deploy is worse than a queued one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy-backend-prod:
     runs-on: ubuntu-latest
@@ -67,7 +74,55 @@ jobs:
               "NATIVE_APP_STORE_URL=https://apps.apple.com/us/app/huddle-workout-tracker/id6826555272" \
               "COMPED_EMAILS=${{ secrets.COMPED_EMAILS }}"
 
+      # `az containerapp update` returns once the new revision is CREATED, not once it is serving,
+      # and until it is, the old revision keeps answering /actuator/health -- so a health check alone
+      # would pass against the previous build. Wait for the revision just created to be the latest
+      # READY one, then check health and one real route through the public hostname. Production runs
+      # 0.25 vCPU and takes ~100s to start (measured 2026-11-01), so the wait is generous.
+      - name: Wait for the new revision to be ready
+        run: |
+          deadline=$(( $(date +%s) + 600 ))
+          while true; do
+            read -r latest ready <<<"$(az containerapp show --name worktrac-backend-prod --resource-group worktrac-rg \
+              --query "[properties.latestRevisionName, properties.latestReadyRevisionName]" -o tsv | tr '\n\t' '  ')"
+            if [ -n "$latest" ] && [ "$latest" = "$ready" ]; then
+              echo "Revision $latest is ready."
+              break
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::Revision $latest did not become ready within 10 minutes (latest ready: $ready)."
+              exit 1
+            fi
+            echo "  waiting: latest=$latest ready=$ready"
+            sleep 10
+          done
+
+      - name: Checkout deploy repo (for the wait-for-url action)
+        uses: actions/checkout@v7
+
+      - name: Wait for production backend health
+        uses: ./.github/actions/wait-for-url
+        with:
+          url: https://api.huddle.fitness/actuator/health
+          label: production backend
+          timeout-seconds: '300'
+
+      # One real route, not just the health endpoint: an unauthenticated /me must be refused with 401.
+      # A 404 means the app's routes are not mounted; a 5xx means the app is up but broken.
+      - name: Smoke test a real route
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://api.huddle.fitness/api/auth/me)
+          echo "GET /api/auth/me (no token) -> $status"
+          if [ "$status" != "401" ]; then
+            echo "::error::Expected 401 from an unauthenticated /api/auth/me, got $status."
+            exit 1
+          fi
+
+  # After the backend, deliberately: a new frontend may call an endpoint only the new backend has
+  # (the API changes additively -- api-compatibility.md -- so old frontends on a new backend are
+  # fine, but not the reverse). A backend deploy that fails its checks therefore stops here.
   deploy-frontend-prod:
+    needs: deploy-backend-prod
     runs-on: ubuntu-latest
 
     steps:
