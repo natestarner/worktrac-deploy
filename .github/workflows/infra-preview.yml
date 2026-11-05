@@ -1,0 +1,131 @@
+name: Infra — Preview Bicep changes
+
+# Shows what applying infra/*.bicep WOULD change on each backend Container App, without
+# changing anything (`az deployment group what-if`). Runs on every PR that touches infra/, and
+# on demand.
+#
+# Prints only WHICH settings would change (paths like properties.template.scale.maxReplicas),
+# never their values: env vars hold secrets, and GitHub's log masking only catches exact
+# matches of a secret, not a fragment of one inside a diff.
+#
+# The image tag is excluded from the comparison on purpose: each environment is previewed
+# against the tag it is running now, so an image difference never hides a settings
+# difference.
+
+on:
+  pull_request:
+    branches: [lower, production]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  what-if:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [lower, prod]
+
+    # Every value the .bicepparam files read. Only the steps below use them; nothing prints them.
+    env:
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      COMPED_EMAILS: ${{ secrets.COMPED_EMAILS }}
+      SQL_CONNECTION_STRING_LOWER: ${{ secrets.SQL_CONNECTION_STRING_LOWER }}
+      SQL_CONNECTION_STRING_PROD: ${{ secrets.SQL_CONNECTION_STRING_PROD }}
+      APP_JWT_SECRET_LOWER: ${{ secrets.APP_JWT_SECRET_LOWER }}
+      APP_JWT_SECRET_PROD: ${{ secrets.APP_JWT_SECRET_PROD }}
+      ACS_EMAIL_CONNECTION_STRING_LOWER: ${{ secrets.ACS_EMAIL_CONNECTION_STRING_LOWER }}
+      ACS_EMAIL_CONNECTION_STRING_PROD: ${{ secrets.ACS_EMAIL_CONNECTION_STRING_PROD }}
+      E2E_TEST_SUPPORT_KEY_LOWER: ${{ secrets.E2E_TEST_SUPPORT_KEY_LOWER }}
+      EMAIL_DELIVERY_WEBHOOK_KEY_LOWER: ${{ secrets.EMAIL_DELIVERY_WEBHOOK_KEY_LOWER }}
+      EMAIL_DELIVERY_WEBHOOK_KEY_PROD: ${{ secrets.EMAIL_DELIVERY_WEBHOOK_KEY_PROD }}
+      STRIPE_SECRET_KEY_LOWER: ${{ secrets.STRIPE_SECRET_KEY_LOWER }}
+      STRIPE_SECRET_KEY_PROD: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
+      STRIPE_PUBLISHABLE_KEY_LOWER: ${{ secrets.STRIPE_PUBLISHABLE_KEY_LOWER }}
+      STRIPE_PUBLISHABLE_KEY_PROD: ${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}
+      STRIPE_WEBHOOK_SECRET_LOWER: ${{ secrets.STRIPE_WEBHOOK_SECRET_LOWER }}
+      STRIPE_WEBHOOK_SECRET_PROD: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
+      STRIPE_PRICE_MONTHLY_LOWER: ${{ secrets.STRIPE_PRICE_MONTHLY_LOWER }}
+      STRIPE_PRICE_MONTHLY_PROD: ${{ secrets.STRIPE_PRICE_MONTHLY_PROD }}
+      STRIPE_PRICE_YEARLY_LOWER: ${{ secrets.STRIPE_PRICE_YEARLY_LOWER }}
+      STRIPE_PRICE_YEARLY_PROD: ${{ secrets.STRIPE_PRICE_YEARLY_PROD }}
+      STRIPE_PRICE_PRO_STARTER_MONTH_LOWER: ${{ secrets.STRIPE_PRICE_PRO_STARTER_MONTH_LOWER }}
+      STRIPE_PRICE_PRO_STARTER_MONTH_PROD: ${{ secrets.STRIPE_PRICE_PRO_STARTER_MONTH_PROD }}
+      STRIPE_PRICE_PRO_STARTER_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_STARTER_YEAR_LOWER }}
+      STRIPE_PRICE_PRO_STARTER_YEAR_PROD: ${{ secrets.STRIPE_PRICE_PRO_STARTER_YEAR_PROD }}
+      STRIPE_PRICE_PRO_STUDIO_MONTH_LOWER: ${{ secrets.STRIPE_PRICE_PRO_STUDIO_MONTH_LOWER }}
+      STRIPE_PRICE_PRO_STUDIO_MONTH_PROD: ${{ secrets.STRIPE_PRICE_PRO_STUDIO_MONTH_PROD }}
+      STRIPE_PRICE_PRO_STUDIO_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_STUDIO_YEAR_LOWER }}
+      STRIPE_PRICE_PRO_STUDIO_YEAR_PROD: ${{ secrets.STRIPE_PRICE_PRO_STUDIO_YEAR_PROD }}
+      STRIPE_PRICE_PRO_PRACTICE_MONTH_LOWER: ${{ secrets.STRIPE_PRICE_PRO_PRACTICE_MONTH_LOWER }}
+      STRIPE_PRICE_PRO_PRACTICE_MONTH_PROD: ${{ secrets.STRIPE_PRICE_PRO_PRACTICE_MONTH_PROD }}
+      STRIPE_PRICE_PRO_PRACTICE_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_PRACTICE_YEAR_LOWER }}
+      STRIPE_PRICE_PRO_PRACTICE_YEAR_PROD: ${{ secrets.STRIPE_PRICE_PRO_PRACTICE_YEAR_PROD }}
+      STRIPE_PRICE_PRO_UNLIMITED_MONTH_LOWER: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_MONTH_LOWER }}
+      STRIPE_PRICE_PRO_UNLIMITED_MONTH_PROD: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_MONTH_PROD }}
+      STRIPE_PRICE_PRO_UNLIMITED_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_YEAR_LOWER }}
+      STRIPE_PRICE_PRO_UNLIMITED_YEAR_PROD: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_YEAR_PROD }}
+
+    steps:
+      - name: Checkout deploy repo
+        uses: actions/checkout@v7
+
+      - name: Azure Login
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Read the image tag the app is running now
+        id: tag
+        run: |
+          app=worktrac-backend-${{ matrix.environment }}
+          image=$(az containerapp show --name "$app" --resource-group worktrac-rg \
+            --query "properties.template.containers[0].image" -o tsv)
+          echo "Live image: $image"
+          echo "IMAGE_TAG=${image##*:}" >> "$GITHUB_OUTPUT"
+
+      - name: Preview changes (what-if)
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.IMAGE_TAG }}
+        run: |
+          az deployment group what-if \
+            --resource-group worktrac-rg \
+            --name "infra-preview-${{ matrix.environment }}-${{ github.run_id }}" \
+            --parameters infra/${{ matrix.environment }}.bicepparam \
+            --no-pretty-print > whatif.json
+
+          # Paths and change types only -- never before/after values.
+          python3 tools/whatif-summary.py whatif.json > changes.txt
+
+          {
+            echo "## ${{ matrix.environment }}"
+            if [ -s changes.txt ]; then
+              echo "Applying this would change:"
+              echo '```'
+              cat changes.txt
+              echo '```'
+            else
+              echo "No changes: the Bicep matches the live app exactly."
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # what-if can't compare secure values, so it lists every secret as changed. This compares
+      # them itself, inside the runner, and prints only "match" or "MISMATCH" per name.
+      - name: Check secret values match the live app
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.IMAGE_TAG }}
+        run: |
+          trap 'rm -f "$RUNNER_TEMP/params.json" "$RUNNER_TEMP/live.json"' EXIT
+          az bicep build-params --file infra/${{ matrix.environment }}.bicepparam --stdout > "$RUNNER_TEMP/params.json"
+          az containerapp show --name worktrac-backend-${{ matrix.environment }} --resource-group worktrac-rg             -o json > "$RUNNER_TEMP/live.json"
+          {
+            echo "Secret env vars compared with the live app:"
+            echo '```'
+            python3 tools/compare-secret-env.py "$RUNNER_TEMP/params.json" "$RUNNER_TEMP/live.json"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
