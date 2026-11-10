@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/native-Bugx-VCl.js","assets/index-n262xu55.js","assets/index-sTFgygxG.css"])))=>i.map(i=>d[i]);
+import{i as e,r as t}from"./index-n262xu55.js";var n=t(`AppLauncher`,{web:()=>e(()=>import(`./native-Bugx-VCl.js`).then(e=>new e.AppLauncherWeb),__vite__mapDeps([0,1,2]))});export{n as AppLauncher};
