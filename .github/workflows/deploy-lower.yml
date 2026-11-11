@@ -67,6 +67,7 @@ jobs:
           STRIPE_PRICE_PRO_PRACTICE_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_PRACTICE_YEAR_LOWER }}
           STRIPE_PRICE_PRO_UNLIMITED_MONTH_LOWER: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_MONTH_LOWER }}
           STRIPE_PRICE_PRO_UNLIMITED_YEAR_LOWER: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_YEAR_LOWER }}
+          APPLE_SIGN_IN_PRIVATE_KEY_LOWER: ${{ secrets.APPLE_SIGN_IN_PRIVATE_KEY_LOWER }}
         run: |
           # A record of what this apply changes: setting paths only, never values. A normal deploy
           # shows the image plus the secret env vars (what-if can't compare secrets).
