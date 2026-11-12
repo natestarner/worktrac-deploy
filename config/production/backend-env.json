@@ -22,5 +22,11 @@
   "STRIPE_PRICE_PRO_UNLIMITED_MONTH": "SET_VIA_SECRET",
   "STRIPE_PRICE_PRO_UNLIMITED_YEAR": "SET_VIA_SECRET",
   "STRIPE_RETURN_URL": "https://app.huddle.fitness/app/billing",
-  "COMPED_EMAILS": "SET_VIA_SECRET"
+  "COMPED_EMAILS": "SET_VIA_SECRET",
+  "SOCIAL_SIGN_IN_ENABLED": "true",
+  "SOCIAL_SIGN_IN_APPLE_CLIENT_IDS": "fitness.huddle.app,fitness.huddle.web",
+  "SOCIAL_SIGN_IN_GOOGLE_CLIENT_IDS": "428334695403-brvpo8hso2k60qf4jaqqdfhlg36e67dh.apps.googleusercontent.com,428334695403-4rvt9vdifhuoqv681gufes3qses28j20.apps.googleusercontent.com",
+  "APPLE_TEAM_ID": "R73HV8H48W",
+  "APPLE_SIGN_IN_KEY_ID": "38GWY77F9V",
+  "APPLE_SIGN_IN_PRIVATE_KEY": "SET_VIA_SECRET"
 }

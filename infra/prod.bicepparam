@@ -58,6 +58,15 @@ param env = [
   { name: 'STRIPE_PRICE_PRO_UNLIMITED_MONTH', secret: true }
   { name: 'STRIPE_PRICE_PRO_UNLIMITED_YEAR', secret: true }
   { name: 'NATIVE_APP_STORE_URL', value: 'https://apps.apple.com/us/app/huddle-workout-tracker/id6826555272' }
+  // Sign in with Apple and Google (worktrac-source docs/architecture/social-sign-in.md). Google's
+  // ids are production's web and iOS clients in Google Cloud project "Huddle"; not secrets. The
+  // Apple private key is production's own .p8 (Key ID below).
+  { name: 'SOCIAL_SIGN_IN_ENABLED', value: 'true' }
+  { name: 'SOCIAL_SIGN_IN_APPLE_CLIENT_IDS', value: 'fitness.huddle.app,fitness.huddle.web' }
+  { name: 'SOCIAL_SIGN_IN_GOOGLE_CLIENT_IDS', value: '428334695403-brvpo8hso2k60qf4jaqqdfhlg36e67dh.apps.googleusercontent.com,428334695403-4rvt9vdifhuoqv681gufes3qses28j20.apps.googleusercontent.com' }
+  { name: 'APPLE_TEAM_ID', value: 'R73HV8H48W' }
+  { name: 'APPLE_SIGN_IN_KEY_ID', value: '38GWY77F9V' }
+  { name: 'APPLE_SIGN_IN_PRIVATE_KEY', secret: true }
 ]
 
 param secretEnv = {
@@ -79,6 +88,7 @@ param secretEnv = {
   STRIPE_PRICE_PRO_PRACTICE_YEAR: readEnvironmentVariable('STRIPE_PRICE_PRO_PRACTICE_YEAR_PROD')
   STRIPE_PRICE_PRO_UNLIMITED_MONTH: readEnvironmentVariable('STRIPE_PRICE_PRO_UNLIMITED_MONTH_PROD')
   STRIPE_PRICE_PRO_UNLIMITED_YEAR: readEnvironmentVariable('STRIPE_PRICE_PRO_UNLIMITED_YEAR_PROD')
+  APPLE_SIGN_IN_PRIVATE_KEY: readEnvironmentVariable('APPLE_SIGN_IN_PRIVATE_KEY_PROD')
 }
 
 param ghcrToken = readEnvironmentVariable('GHCR_TOKEN')
