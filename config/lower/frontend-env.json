@@ -1,3 +1,13 @@
 {
-  "apiUrl": "https://api.dev.huddle.fitness"
+  "apiUrl": "https://api.dev.huddle.fitness",
+  "socialSignIn": {
+    "apple": {
+      "servicesId": "fitness.huddle.web.lower",
+      "redirectUri": "https://app.dev.huddle.fitness/auth/apple"
+    },
+    "google": {
+      "webClientId": "428334695403-r054kfu523mqkfj3lfatuttcfi7j770i.apps.googleusercontent.com"
+    },
+    "test": true
+  }
 }
