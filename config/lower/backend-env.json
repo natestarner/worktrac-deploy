@@ -28,5 +28,6 @@
   "SOCIAL_SIGN_IN_APPLE_CLIENT_IDS": "fitness.huddle.app.lower,fitness.huddle.web.lower",
   "APPLE_TEAM_ID": "R73HV8H48W",
   "APPLE_SIGN_IN_KEY_ID": "AQQA8YJY69",
-  "APPLE_SIGN_IN_PRIVATE_KEY": "SET_VIA_SECRET"
+  "APPLE_SIGN_IN_PRIVATE_KEY": "SET_VIA_SECRET",
+  "SOCIAL_SIGN_IN_GOOGLE_CLIENT_IDS": "428334695403-r054kfu523mqkfj3lfatuttcfi7j770i.apps.googleusercontent.com,428334695403-m6cn7lk9h61hm92ltp6ul014cceoehbs.apps.googleusercontent.com"
 }
