@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/native-CNP_NQyG.js","assets/index-BSly7Ts6.js","assets/index-pxO_t0Wh.css"])))=>i.map(i=>d[i]);
+import{i as e,r as t}from"./index-BSly7Ts6.js";var n=t(`AppLauncher`,{web:()=>e(()=>import(`./native-CNP_NQyG.js`).then(e=>new e.AppLauncherWeb),__vite__mapDeps([0,1,2]))});export{n as AppLauncher};
