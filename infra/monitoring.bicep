@@ -3,14 +3,22 @@
 // Prod only, deliberately. Lower scales to zero, so "no health-metrics line" is its normal state,
 // and a red lower is triaged by the deploy pipeline, not by email.
 //
-// Two kinds of rule, chosen by price (Azure Monitor, eastus, checked 2026-11-14):
-//   - Metric alerts: $0.10/month per monitored series, first 10 free. Used for everything the
-//     platform already measures (5xx, restarts, memory, database).
-//   - Log search alerts over Log Analytics: $0.50/month at a 15-minute frequency, $1.00 at 10,
-//     $1.50 at 5. Used only for what lives in the app's own `health-metrics` log line (outbox and
-//     connection pool) and for "the app stopped reporting at all".
-// Total about $2.50/month.
+// Chosen by price (Azure Monitor retail prices, eastus, checked 2026-11-14). The user asked to keep
+// the monthly cost as close to zero as possible, so:
+//   - Metric alerts are free for the first 10 monitored series per subscription, then $0.10/month
+//     each. Everything the platform measures is a metric alert: 7 here, all inside the free 10.
+//   - Log search alerts have NO free tier ($0.50/month at a 15-minute frequency, $1.00 at 10, $1.50
+//     at 5). There is exactly one: email-stuck, the one failure the app can't report on its own
+//     (its own alert email would sit in the same stuck outbox).
+// Total $0.50/month. Before adding a rule, check which kind it is: an 11th metric rule costs $0.10,
+// any new log rule at least $0.50.
 //
+// Dropped for cost on 2026-11-14 (each was a log search rule), and what covers its case instead:
+//   - "backend silent" (no health-metrics line for 10 min, $1.00): `-replicas` catches the app
+//     being down; a hung app shows up as 5xx (ingress timeouts) once anyone uses it.
+//   - "pool saturated" ($0.50): `-response-time` catches the slowdown it causes.
+//   - "email failed" ($0.50): the app itself emails the admin when an outbox row gives up.
+
 // The `health-metrics` keys are an API (worktrac-source docs/azure-read-only-access.md, "Health
 // metrics"): never rename one in the backend without changing the parse below in the same release.
 // Each rule's query was run against the live workspace before it shipped: quiet on prod at the
@@ -147,6 +155,34 @@ var metricAlerts = [
     frequency: 'PT1H'
     window: 'PT1H'
   }
+  {
+    name: '${appName}-replicas'
+    description: 'No backend replica running for 15 minutes: prod is down. Prod is set to min 1 replica, so this should never be 0 (it was 1 for every 5-minute window from 2026-11-07 to 11-14). A zero-replica app reports 0, not "no data" (checked on lower), so this fires. ContainerAppSystemLogs_CL says why.'
+    severity: 1
+    scope: app.id
+    namespace: 'Microsoft.App/containerApps'
+    metric: 'Replicas'
+    aggregation: 'Maximum'
+    operator: 'LessThan'
+    threshold: 1
+    dimensions: []
+    frequency: 'PT5M'
+    window: 'PT15M'
+  }
+  {
+    name: '${appName}-response-time'
+    description: 'API responses averaged over 5 seconds for 15 minutes. Normal is ~11 ms (median); a quiet window with one slow request has reached 3.2 s, so the line sits above that. Usually the database: every pool connection busy (requests wait up to 30 s for one) or the database at its DTU limit. Check the health-metrics poolWaiting value and the -dtu alert.'
+    severity: 2
+    scope: app.id
+    namespace: 'Microsoft.App/containerApps'
+    metric: 'ResponseTime'
+    aggregation: 'Average'
+    operator: 'GreaterThan'
+    threshold: 5000
+    dimensions: []
+    frequency: 'PT5M'
+    window: 'PT15M'
+  }
 ]
 
 resource metricRules 'Microsoft.Insights/metricAlerts@2018-03-01' = [
@@ -184,7 +220,7 @@ resource metricRules 'Microsoft.Insights/metricAlerts@2018-03-01' = [
 ]
 
 // ---------------------------------------------------------------------------------------------
-// Log search alerts over the app's `health-metrics` line (one per replica per minute)
+// Log search alert over the app's `health-metrics` line (one per replica per minute)
 // ---------------------------------------------------------------------------------------------
 
 var healthLines = 'ContainerAppConsoleLogs_CL | where ContainerAppName_s == \'${appName}\' | where Log_s contains \'health-metrics outboxPending=\''
@@ -200,41 +236,6 @@ var logAlerts = [
     frequency: 'PT15M'
     window: 'PT15M'
     // Stateful: one email when it starts, one when it clears.
-    autoMitigate: true
-    mute: null
-  }
-  {
-    name: '${appName}-email-failed'
-    displayName: 'Prod: an email gave up'
-    description: 'An outbox row used every retry and was marked FAILED in the last hour. Its reason is on the row and in the admin Activity tab. The app also emails the admin about it; this alert is sent by Azure Monitor, so it arrives even when the app\'s own email is what broke.'
-    severity: 2
-    query: '${healthLines} ${parseHealth} | where failed > 0'
-    frequency: 'PT15M'
-    window: 'PT15M'
-    // outboxFailedLastHour is a rolling one-hour count, so the condition stays true for an hour
-    // after one failure. Stateless + muted for an hour = one email per failure, not four.
-    autoMitigate: false
-    mute: 'PT1H'
-  }
-  {
-    name: '${appName}-pool-saturated'
-    displayName: 'Prod: database connection pool exhausted'
-    description: 'Requests waited for a database connection in 3 or more of 5 consecutive minutes on one replica: every connection busy. Requests slow down, then time out.'
-    severity: 2
-    query: '${healthLines} ${parseHealth} | where waiting > 0 | summarize minutes = count() by bin(TimeGenerated, 5m), ContainerGroupName_s | where minutes >= 3'
-    frequency: 'PT15M'
-    window: 'PT15M'
-    autoMitigate: true
-    mute: null
-  }
-  {
-    name: '${appName}-silent'
-    displayName: 'Prod: backend stopped reporting'
-    description: 'No health-metrics line from the prod backend for 10 minutes. Every running replica writes one a minute, and prod never scales to zero, so the app is down, hung, or not writing logs. Check https://api.huddle.fitness/actuator/health and ContainerAppSystemLogs_CL.'
-    severity: 1
-    query: '${healthLines} | summarize lines = count() | where lines == 0'
-    frequency: 'PT10M'
-    window: 'PT10M'
     autoMitigate: true
     mute: null
   }
