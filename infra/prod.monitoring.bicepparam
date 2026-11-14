@@ -8,7 +8,8 @@ param sqlDatabaseName = 'worktrac-db-prod'
 param actionGroupName = 'huddle-prod-alerts'
 param actionGroupShortName = 'huddle-prod'
 
-// The same admin address the app's own alerts go to (ADMIN_EMAILS in prod.bicepparam).
+// The inbox Huddle's other operational notifications go to. Not ADMIN_EMAILS: that setting also
+// decides who can sign in to the admin portal, so it stays separate.
 param emailReceivers = [
-  { name: 'huddle-admin', address: 'nate+huddleadmin@starner.co' }
+  { name: 'huddle-ops', address: 'huddle@starner.co' }
 ]
