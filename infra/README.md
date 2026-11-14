@@ -10,8 +10,9 @@ rather than deploying an empty value.
 
 - **Lower:** every deploy applies these files (`deploy-lower.yml`, step "Deploy backend (apply
   Bicep)"). It logs the what-if summary first, as a record of what the apply changed.
-- **Prod:** not yet. `deploy-prod.yml` (on the `production` branch) still runs
-  `az containerapp update`. Its switch is a separate PR to `production`.
+- **Prod:** every deploy applies these files too (`deploy-prod.yml` on the `production` branch,
+  step "Deploy backend (apply Bicep)"), since 2026-11-14. Before the switch, the preview against
+  the live prod app showed only the 19 uncomparable secrets, and every one matched.
 
 The `Infra — Preview Bicep changes` workflow runs `az deployment group what-if` on every PR
 touching `infra/`. It reports which settings applying the files would change, by path and never

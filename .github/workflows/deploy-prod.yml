@@ -28,70 +28,69 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Must run BEFORE the image update below -- see the identical comment in
-      # deploy-lower.yml. Kept in sync for consistency even though the lower-environment
-      # crash turned out to have a different root cause (missing APP_JWT_SECRET /
-      # SPRING_DATASOURCE_USERNAME placeholders, not a credentials-ordering issue).
-      - name: Configure GHCR pull credentials
-        run: |
-          az containerapp registry set \
-            --name worktrac-backend-prod \
-            --resource-group worktrac-rg \
-            --server ghcr.io \
-            --username ${{ github.repository_owner }} \
-            --password ${{ secrets.GHCR_TOKEN }}
-
-      - name: Deploy backend to Container Apps
+      # The whole Container App -- image, size, replicas, scale rule, domains and every env var --
+      # comes from infra/backend.bicep + infra/prod.bicepparam, the same way deploy-lower.yml applies
+      # lower.bicepparam. Anything not in those files is removed from the live app on this apply, so
+      # change production settings there, not here and not in the portal.
+      #
+      # The GHCR pull credentials go in the same apply as the image (they're the template's registry
+      # secret). They used to need a separate `az containerapp registry set` step that ran first,
+      # because a revision created without valid credentials failed its image pull silently and Azure
+      # kept serving the old one. Applying both together means the revision is never created without
+      # them.
+      #
+      # Switched from `az containerapp update` on 2026-11-14. Before the switch, the Infra preview
+      # what-if against the live app showed only the 19 secret env vars (which it cannot compare),
+      # and compare-secret-env.py reported every one of them a match.
+      - name: Deploy backend (apply Bicep)
         env:
+          IMAGE_TAG: ${{ steps.tag.outputs.IMAGE_TAG }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          COMPED_EMAILS: ${{ secrets.COMPED_EMAILS }}
+          SQL_CONNECTION_STRING_PROD: ${{ secrets.SQL_CONNECTION_STRING_PROD }}
+          APP_JWT_SECRET_PROD: ${{ secrets.APP_JWT_SECRET_PROD }}
+          ACS_EMAIL_CONNECTION_STRING_PROD: ${{ secrets.ACS_EMAIL_CONNECTION_STRING_PROD }}
+          EMAIL_DELIVERY_WEBHOOK_KEY_PROD: ${{ secrets.EMAIL_DELIVERY_WEBHOOK_KEY_PROD }}
+          STRIPE_SECRET_KEY_PROD: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
+          STRIPE_PUBLISHABLE_KEY_PROD: ${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}
+          STRIPE_WEBHOOK_SECRET_PROD: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
+          STRIPE_PRICE_MONTHLY_PROD: ${{ secrets.STRIPE_PRICE_MONTHLY_PROD }}
+          STRIPE_PRICE_YEARLY_PROD: ${{ secrets.STRIPE_PRICE_YEARLY_PROD }}
+          STRIPE_PRICE_PRO_STARTER_MONTH_PROD: ${{ secrets.STRIPE_PRICE_PRO_STARTER_MONTH_PROD }}
+          STRIPE_PRICE_PRO_STARTER_YEAR_PROD: ${{ secrets.STRIPE_PRICE_PRO_STARTER_YEAR_PROD }}
+          STRIPE_PRICE_PRO_STUDIO_MONTH_PROD: ${{ secrets.STRIPE_PRICE_PRO_STUDIO_MONTH_PROD }}
+          STRIPE_PRICE_PRO_STUDIO_YEAR_PROD: ${{ secrets.STRIPE_PRICE_PRO_STUDIO_YEAR_PROD }}
+          STRIPE_PRICE_PRO_PRACTICE_MONTH_PROD: ${{ secrets.STRIPE_PRICE_PRO_PRACTICE_MONTH_PROD }}
+          STRIPE_PRICE_PRO_PRACTICE_YEAR_PROD: ${{ secrets.STRIPE_PRICE_PRO_PRACTICE_YEAR_PROD }}
+          STRIPE_PRICE_PRO_UNLIMITED_MONTH_PROD: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_MONTH_PROD }}
+          STRIPE_PRICE_PRO_UNLIMITED_YEAR_PROD: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_YEAR_PROD }}
           APPLE_SIGN_IN_PRIVATE_KEY_PROD: ${{ secrets.APPLE_SIGN_IN_PRIVATE_KEY_PROD }}
         run: |
-          # Sign in with Apple's .p8 spans several lines, which would break this command apart if
-          # substituted inline like the other secrets. Fold it onto one line (the backend strips the
-          # header lines and all whitespace) and mask that form too.
-          APPLE_KEY_ONE_LINE=$(printf '%s' "$APPLE_SIGN_IN_PRIVATE_KEY_PROD" | tr -d '\r\n')
-          if [ -z "$APPLE_KEY_ONE_LINE" ]; then
+          # An empty Apple key would deploy silently and only show up when Apple account deletion
+          # fails to revoke. (readEnvironmentVariable already fails on an UNSET variable; this
+          # catches a set-but-empty secret too.)
+          if [ -z "$(printf '%s' "$APPLE_SIGN_IN_PRIVATE_KEY_PROD" | tr -d '\r\n ')" ]; then
             echo "::error::APPLE_SIGN_IN_PRIVATE_KEY_PROD is empty; Apple account deletion could not revoke."
             exit 1
           fi
-          echo "::add-mask::$APPLE_KEY_ONE_LINE"
-          az containerapp update \
-            --name worktrac-backend-prod \
-            --resource-group worktrac-rg \
-            --image ghcr.io/${{ github.repository_owner }}/worktrac-backend:${{ steps.tag.outputs.IMAGE_TAG }} \
-            --set-env-vars \
-              "SPRING_DATASOURCE_URL=${{ secrets.SQL_CONNECTION_STRING_PROD }}" \
-              "SPRING_PROFILES_ACTIVE=production" \
-              "CORS_ALLOWED_ORIGINS=https://black-desert-00fee190f.7.azurestaticapps.net,https://worktrac-app.starnerconsulting.co,https://app.huddle.fitness,capacitor://localhost" \
-              "APP_JWT_SECRET=${{ secrets.APP_JWT_SECRET_PROD }}" \
-              "ACS_EMAIL_CONNECTION_STRING=${{ secrets.ACS_EMAIL_CONNECTION_STRING_PROD }}" \
-              "ACS_EMAIL_SENDER_ADDRESS=DoNotReply@huddle.fitness" \
-              "APP_EMAIL_APP_URL=https://app.huddle.fitness/app/log" \
-              "ADMIN_EMAILS=nate+huddleadmin@starner.co" \
-              "EMAIL_DELIVERY_WEBHOOK_KEY=${{ secrets.EMAIL_DELIVERY_WEBHOOK_KEY_PROD }}" \
-              "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY_PROD }}" \
-              "STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}" \
-              "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}" \
-              "STRIPE_PRICE_MONTHLY=${{ secrets.STRIPE_PRICE_MONTHLY_PROD }}" \
-              "STRIPE_PRICE_YEARLY=${{ secrets.STRIPE_PRICE_YEARLY_PROD }}" \
-              "STRIPE_PRICE_PRO_STARTER_MONTH=${{ secrets.STRIPE_PRICE_PRO_STARTER_MONTH_PROD }}" \
-              "STRIPE_PRICE_PRO_STARTER_YEAR=${{ secrets.STRIPE_PRICE_PRO_STARTER_YEAR_PROD }}" \
-              "STRIPE_PRICE_PRO_STUDIO_MONTH=${{ secrets.STRIPE_PRICE_PRO_STUDIO_MONTH_PROD }}" \
-              "STRIPE_PRICE_PRO_STUDIO_YEAR=${{ secrets.STRIPE_PRICE_PRO_STUDIO_YEAR_PROD }}" \
-              "STRIPE_PRICE_PRO_PRACTICE_MONTH=${{ secrets.STRIPE_PRICE_PRO_PRACTICE_MONTH_PROD }}" \
-              "STRIPE_PRICE_PRO_PRACTICE_YEAR=${{ secrets.STRIPE_PRICE_PRO_PRACTICE_YEAR_PROD }}" \
-              "STRIPE_PRICE_PRO_UNLIMITED_MONTH=${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_MONTH_PROD }}" \
-              "STRIPE_PRICE_PRO_UNLIMITED_YEAR=${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_YEAR_PROD }}" \
-              "STRIPE_RETURN_URL=https://app.huddle.fitness/app/billing" \
-              "NATIVE_APP_STORE_URL=https://apps.apple.com/us/app/huddle-workout-tracker/id6826555272" \
-              "COMPED_EMAILS=${{ secrets.COMPED_EMAILS }}" \
-              "SOCIAL_SIGN_IN_ENABLED=true" \
-              "SOCIAL_SIGN_IN_APPLE_CLIENT_IDS=fitness.huddle.app,fitness.huddle.web" \
-              "SOCIAL_SIGN_IN_GOOGLE_CLIENT_IDS=428334695403-brvpo8hso2k60qf4jaqqdfhlg36e67dh.apps.googleusercontent.com,428334695403-4rvt9vdifhuoqv681gufes3qses28j20.apps.googleusercontent.com" \
-              "APPLE_TEAM_ID=R73HV8H48W" \
-              "APPLE_SIGN_IN_KEY_ID=38GWY77F9V" \
-              "APPLE_SIGN_IN_PRIVATE_KEY=$APPLE_KEY_ONE_LINE"
 
-      # `az containerapp update` returns once the new revision is CREATED, not once it is serving,
+          # A record of what this apply changes: setting paths only, never values. A normal deploy
+          # shows the image plus the secret env vars (what-if can't compare secrets).
+          az deployment group what-if \
+            --resource-group worktrac-rg \
+            --name "backend-prod-preview-${{ github.run_id }}" \
+            --parameters infra/prod.bicepparam \
+            --no-pretty-print > whatif.json
+          python3 tools/whatif-summary.py whatif.json
+          rm -f whatif.json
+
+          az deployment group create \
+            --resource-group worktrac-rg \
+            --name "backend-prod-${{ github.run_id }}" \
+            --parameters infra/prod.bicepparam \
+            --output none
+
+      # The apply can return once the new revision is CREATED, not once it is serving,
       # and until it is, the old revision keeps answering /actuator/health -- so a health check alone
       # would pass against the previous build. Wait for the revision just created to be the latest
       # READY one, then check health and one real route through the public hostname. Production runs
