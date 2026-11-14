@@ -46,6 +46,20 @@ $0.50/month at a 15-minute frequency and $1.00 at 10 (eastus, 2026-11-14). The l
 backend's `health-metrics` line; its keys are an API (worktrac-source
 `docs/azure-read-only-access.md`).
 
+## Secrets
+
+An env var marked `secret: true` in a `.bicepparam` file is stored as a **Container App secret**
+(named like the env var, lowercased with `-`: `spring-datasource-url`), and the env var only
+references it (`secretRef`). The values never appear in the app's template, so the portal, `az
+containerapp show` and anyone with Reader see names, not values. The app's environment is the same.
+
+Changing only a secret's value doesn't start a new revision on its own, so `backend.bicep` also
+sets `SECRETS_FINGERPRINT`, a one-way hash of all the secret values together: rotate a GitHub
+secret, redeploy, and the hash changes, which forces the new revision that picks it up.
+
+`tools/compare-secret-env.py` (the preview's secret check) reads secretRef values with `az
+containerapp secret list --show-values` inside the runner and still prints only match/MISMATCH.
+
 ## Rules
 
 - **Anything left out is removed.** Azure replaces a Container App's whole `template` on every
