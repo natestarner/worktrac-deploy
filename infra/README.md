@@ -24,7 +24,7 @@ uncomparable secrets, and every secret matched.
 ## Alerts (prod)
 
 `monitoring.bicep` + `prod.monitoring.bicepparam` hold production's alerts and the action group
-that emails them (`huddle-prod-alerts`, to the admin address). `deploy-prod.yml`'s
+that emails them (`huddle-prod-alerts`, to huddle@starner.co). `deploy-prod.yml`'s
 `deploy-monitoring-prod` job applies them on every push to `production`, so change a rule here,
 not in the portal. Prod only: lower scales to zero, so its normal state would trip "stopped
 reporting".
