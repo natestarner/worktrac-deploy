@@ -33,18 +33,21 @@ reporting".
 |---|---|---|
 | `-5xx` | 10+ responses with a 5xx in 5 min | metric |
 | `-restarts` | any container restart (crash, OOM kill, liveness) | metric |
+| `-replicas` | no replica running for 15 min: prod is down | metric |
+| `-response-time` | responses average over 5 s for 15 min (usually the database) | metric |
 | `-memory` | memory averages over 97% for 15 min (85-92% is normal) | metric |
 | `-dtu` | database over 80% DTU for 15 min | metric |
 | `-storage` | database over 80% of its max size | metric |
 | `-email-stuck` | an email has waited over 15 min | log search, every 15 min |
-| `-email-failed` | an outbox row gave up (muted 1h after firing) | log search, every 15 min |
-| `-pool-saturated` | requests waited for a DB connection 3 of 5 minutes | log search, every 15 min |
-| `-silent` | no `health-metrics` line for 10 min: down or hung | log search, every 10 min |
 
-About $2.50/month: the five metric rules fall in the free 10, and log search rules cost
-$0.50/month at a 15-minute frequency and $1.00 at 10 (eastus, 2026-11-14). The log rules parse the
-backend's `health-metrics` line; its keys are an API (worktrac-source
-`docs/azure-read-only-access.md`).
+**$0.50/month**, deliberately (the user asked to keep it near zero, 2026-11-14). Metric rules are
+free for the first 10 per subscription, then $0.10/month each; log search rules have no free tier
+($0.50/month at 15 minutes, $1.00 at 10). `email-stuck` is the only log rule because it's the one
+failure the app can't report itself: its own alert email would be stuck in the same outbox.
+Three log rules were dropped for cost: "backend silent" (covered by `-replicas`, and by `-5xx`
+once anyone uses a hung app), "pool saturated" (covered by `-response-time`) and "email failed"
+(the app emails the admin itself). The log rule parses the backend's `health-metrics` line; its
+keys are an API (worktrac-source `docs/azure-read-only-access.md`).
 
 ## Secrets
 
