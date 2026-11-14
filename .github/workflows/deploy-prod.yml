@@ -211,3 +211,48 @@ jobs:
           mode: verify
           environment: production
           paths: "/ /for-trainers.html /pricing.html /privacy.html /terms.html /support.html"
+
+  # Production alerts and their action group (infra/monitoring.bicep + prod.monitoring.bicepparam).
+  # Independent of the app jobs on purpose, like marketing: an alerts change must never hold up a
+  # deploy, and a failed deploy must not stop alerts being kept in sync. Applying is idempotent, so
+  # running it on every push just re-asserts the rules.
+  deploy-monitoring-prod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout deploy repo
+        uses: actions/checkout@v7
+
+      - name: Azure Login
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Apply alerts (Bicep)
+        run: |
+          az deployment group what-if \
+            --resource-group worktrac-rg \
+            --name "monitoring-prod-preview-${{ github.run_id }}" \
+            --parameters infra/prod.monitoring.bicepparam \
+            --no-pretty-print > whatif.json
+          python3 tools/whatif-summary.py whatif.json
+          rm -f whatif.json
+
+          az deployment group create \
+            --resource-group worktrac-rg \
+            --name "monitoring-prod-${{ github.run_id }}" \
+            --parameters infra/prod.monitoring.bicepparam \
+            --output none
+
+      # Every rule must exist and be enabled. Catches a rule that applied but was left disabled, or
+      # a template change that silently dropped one.
+      - name: Check every alert rule is live
+        run: |
+          expected=9
+          metric=$(az monitor metrics alert list -g worktrac-rg --query "length([?enabled])" -o tsv)
+          logs=$(az resource list -g worktrac-rg --resource-type Microsoft.Insights/scheduledQueryRules --query "length(@)" -o tsv)
+          echo "Enabled metric alerts: $metric, log search alerts: $logs"
+          if [ $(( metric + logs )) -lt $expected ]; then
+            echo "::error::Expected $expected alert rules, found $(( metric + logs ))."
+            exit 1
+          fi

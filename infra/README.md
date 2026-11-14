@@ -21,6 +21,31 @@ second step compares those itself (`tools/compare-secret-env.py`) and prints onl
 "MISMATCH" per name. Adoption was proven on 2026-11-02: both apps showed only those
 uncomparable secrets, and every secret matched.
 
+## Alerts (prod)
+
+`monitoring.bicep` + `prod.monitoring.bicepparam` hold production's alerts and the action group
+that emails them (`huddle-prod-alerts`, to the admin address). `deploy-prod.yml`'s
+`deploy-monitoring-prod` job applies them on every push to `production`, so change a rule here,
+not in the portal. Prod only: lower scales to zero, so its normal state would trip "stopped
+reporting".
+
+| Rule | Fires when | Kind |
+|---|---|---|
+| `-5xx` | 10+ responses with a 5xx in 5 min | metric |
+| `-restarts` | any container restart (crash, OOM kill, liveness) | metric |
+| `-memory` | memory averages over 97% for 15 min (85-92% is normal) | metric |
+| `-dtu` | database over 80% DTU for 15 min | metric |
+| `-storage` | database over 80% of its max size | metric |
+| `-email-stuck` | an email has waited over 15 min | log search, every 15 min |
+| `-email-failed` | an outbox row gave up (muted 1h after firing) | log search, every 15 min |
+| `-pool-saturated` | requests waited for a DB connection 3 of 5 minutes | log search, every 15 min |
+| `-silent` | no `health-metrics` line for 10 min: down or hung | log search, every 10 min |
+
+About $2.50/month: the five metric rules fall in the free 10, and log search rules cost
+$0.50/month at a 15-minute frequency and $1.00 at 10 (eastus, 2026-11-14). The log rules parse the
+backend's `health-metrics` line; its keys are an API (worktrac-source
+`docs/azure-read-only-access.md`).
+
 ## Rules
 
 - **Anything left out is removed.** Azure replaces a Container App's whole `template` on every
