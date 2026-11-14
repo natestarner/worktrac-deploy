@@ -59,6 +59,23 @@ resource managedEnvironment 'Microsoft.App/managedEnvironments@2025-07-01' exist
 
 var registrySecretName = 'ghcrio-natestarner'
 
+// Secret env vars are stored as Container App secrets and the env var only names one
+// (`secretRef`), so their values never appear in the app's template: not in the portal, not in
+// `az containerapp show`, not to anyone with Reader. The app sees exactly the same environment.
+//
+// Secret names must be lowercase letters, digits and '-': SPRING_DATASOURCE_URL becomes
+// spring-datasource-url.
+var secretEnvVars = filter(env, e => e.?secret ?? false)
+
+func secretName(envName string) string => toLower(replace(envName, '_', '-'))
+
+// Changing only a secret's value does NOT start a new revision (secrets live on the app, not
+// the revision), so a rotated secret would sit unused until something else changed. This short
+// hash of every secret value changes whenever any of them does, and it is a plain env var, so it
+// is part of the template and forces the new revision. A one-way 13-character hash of all the
+// values together; it reveals nothing about any one of them.
+var secretsFingerprint = uniqueString(string(secretEnv))
+
 resource app 'Microsoft.App/containerApps@2025-07-01' = {
   name: appName
   location: location
@@ -96,12 +113,18 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
           passwordSecretRef: registrySecretName
         }
       ]
-      secrets: [
-        {
-          name: registrySecretName
-          value: ghcrToken
-        }
-      ]
+      secrets: concat(
+        [
+          {
+            name: registrySecretName
+            value: ghcrToken
+          }
+        ],
+        map(secretEnvVars, e => {
+          name: secretName(e.name)
+          value: secretEnv[e.name]
+        })
+      )
     }
     template: {
       terminationGracePeriodSeconds: terminationGracePeriodSeconds
@@ -109,12 +132,12 @@ resource app 'Microsoft.App/containerApps@2025-07-01' = {
         {
           name: appName
           image: image
-          env: [
-            for e in env: {
-              name: e.name
-              value: (e.?secret ?? false) ? secretEnv[e.name] : e.value
-            }
-          ]
+          // Kept at the END so adding it leaves every existing env var at its position (what-if
+          // compares arrays by position).
+          env: concat(
+            map(env, e => (e.?secret ?? false) ? { name: e.name, secretRef: secretName(e.name) } : { name: e.name, value: e.value }),
+            [ { name: 'SECRETS_FINGERPRINT', value: secretsFingerprint } ]
+          )
           resources: {
             cpu: json(cpu)
             memory: memory
