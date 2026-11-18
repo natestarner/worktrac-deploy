@@ -67,6 +67,16 @@ param env = [
   { name: 'APPLE_TEAM_ID', value: 'R73HV8H48W' }
   { name: 'APPLE_SIGN_IN_KEY_ID', value: '38GWY77F9V' }
   { name: 'APPLE_SIGN_IN_PRIVATE_KEY', secret: true }
+  // In-App Purchase (worktrac-source docs/in-app-purchase-plan.md). Huddle's own App Store Connect
+  // app: its bundle id, Apple ID and the production product prefix. The issuer and Key ID belong to
+  // the team-wide In-App Purchase key "Huddle server" (the same key lower uses); neither is a
+  // secret. The private key is that key's .p8.
+  { name: 'APPLE_IAP_BUNDLE_ID', value: 'fitness.huddle.app' }
+  { name: 'APPLE_IAP_APP_APPLE_ID', value: '6826555272' }
+  { name: 'APPLE_IAP_ISSUER_ID', value: 'e1d9d530-bf88-4df8-8666-3f3e052555c5' }
+  { name: 'APPLE_IAP_KEY_ID', value: 'N93N6MMUBY' }
+  { name: 'APPLE_IAP_PRODUCT_PREFIX', value: 'huddle.' }
+  { name: 'APPLE_IAP_PRIVATE_KEY', secret: true }
 ]
 
 param secretEnv = {
@@ -89,6 +99,7 @@ param secretEnv = {
   STRIPE_PRICE_PRO_UNLIMITED_MONTH: readEnvironmentVariable('STRIPE_PRICE_PRO_UNLIMITED_MONTH_PROD')
   STRIPE_PRICE_PRO_UNLIMITED_YEAR: readEnvironmentVariable('STRIPE_PRICE_PRO_UNLIMITED_YEAR_PROD')
   APPLE_SIGN_IN_PRIVATE_KEY: readEnvironmentVariable('APPLE_SIGN_IN_PRIVATE_KEY_PROD')
+  APPLE_IAP_PRIVATE_KEY: readEnvironmentVariable('APPLE_IAP_PRIVATE_KEY_PROD')
 }
 
 param ghcrToken = readEnvironmentVariable('GHCR_TOKEN')
