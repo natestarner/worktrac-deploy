@@ -13,6 +13,46 @@ param memory = '0.5Gi'
 param minReplicas = 1
 param maxReplicas = 1
 
+// The app's own health groups, as on lower (see lower.bicepparam for why: neither group checks the
+// database, so a DB outage keeps the replica answering honest 503s instead of restarting it).
+// Until 2026-11-19 production had none, so the platform's default TCP checks applied, and they
+// restart after ~30s without an answer: five liveness kills in 30 days (Oct 22 - Nov 19), each a
+// ~4-minute outage on this one small replica while it restarted.
+//
+// Liveness is lower's: 6 x 10s, so a stall of up to a minute is survived, not restarted.
+// Readiness is MORE tolerant than lower's (6 x 5s here, 5 x 3s there): this is the only replica,
+// so taking it out of rotation is an outage, not a reroute.
+// Startup allows 240s: a restart at 0.25 vCPU took ~2.5 minutes on 2026-11-19 (a deploy, ~20s).
+param probes = [
+  {
+    type: 'Liveness'
+    httpGet: { path: '/actuator/health/liveness', port: 8080 }
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  }
+  {
+    type: 'Readiness'
+    httpGet: { path: '/actuator/health/readiness', port: 8080 }
+    initialDelaySeconds: 0
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  }
+  {
+    type: 'Startup'
+    httpGet: { path: '/actuator/health/liveness', port: 8080 }
+    initialDelaySeconds: 1
+    periodSeconds: 1
+    timeoutSeconds: 3
+    failureThreshold: 240
+    successThreshold: 1
+  }
+]
+
 param scaleRules = [
   {
     name: 'http-scaler'
