@@ -73,6 +73,7 @@ jobs:
       APPLE_SIGN_IN_PRIVATE_KEY_LOWER: ${{ secrets.APPLE_SIGN_IN_PRIVATE_KEY_LOWER }}
       APPLE_SIGN_IN_PRIVATE_KEY_PROD: ${{ secrets.APPLE_SIGN_IN_PRIVATE_KEY_PROD }}
       APPLE_IAP_PRIVATE_KEY_PROD: ${{ secrets.APPLE_IAP_PRIVATE_KEY_PROD }}
+      APPLE_IAP_PRIVATE_KEY_LOWER: ${{ secrets.APPLE_IAP_PRIVATE_KEY_LOWER }}
 
     steps:
       - name: Checkout deploy repo

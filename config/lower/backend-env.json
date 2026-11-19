@@ -29,5 +29,11 @@
   "APPLE_TEAM_ID": "R73HV8H48W",
   "APPLE_SIGN_IN_KEY_ID": "AQQA8YJY69",
   "APPLE_SIGN_IN_PRIVATE_KEY": "SET_VIA_SECRET",
-  "SOCIAL_SIGN_IN_GOOGLE_CLIENT_IDS": "428334695403-r054kfu523mqkfj3lfatuttcfi7j770i.apps.googleusercontent.com,428334695403-m6cn7lk9h61hm92ltp6ul014cceoehbs.apps.googleusercontent.com"
+  "SOCIAL_SIGN_IN_GOOGLE_CLIENT_IDS": "428334695403-r054kfu523mqkfj3lfatuttcfi7j770i.apps.googleusercontent.com,428334695403-m6cn7lk9h61hm92ltp6ul014cceoehbs.apps.googleusercontent.com",
+  "APPLE_IAP_BUNDLE_ID": "fitness.huddle.app.lower",
+  "APPLE_IAP_APP_APPLE_ID": "6826555225",
+  "APPLE_IAP_ISSUER_ID": "e1d9d530-bf88-4df8-8666-3f3e052555c5",
+  "APPLE_IAP_KEY_ID": "N93N6MMUBY",
+  "APPLE_IAP_PRODUCT_PREFIX": "huddle.lower.",
+  "APPLE_IAP_PRIVATE_KEY": "SET_VIA_SECRET"
 }
