@@ -65,12 +65,19 @@ jobs:
           STRIPE_PRICE_PRO_UNLIMITED_MONTH_PROD: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_MONTH_PROD }}
           STRIPE_PRICE_PRO_UNLIMITED_YEAR_PROD: ${{ secrets.STRIPE_PRICE_PRO_UNLIMITED_YEAR_PROD }}
           APPLE_SIGN_IN_PRIVATE_KEY_PROD: ${{ secrets.APPLE_SIGN_IN_PRIVATE_KEY_PROD }}
+          APPLE_IAP_PRIVATE_KEY_PROD: ${{ secrets.APPLE_IAP_PRIVATE_KEY_PROD }}
         run: |
           # An empty Apple key would deploy silently and only show up when Apple account deletion
           # fails to revoke. (readEnvironmentVariable already fails on an UNSET variable; this
           # catches a set-but-empty secret too.)
           if [ -z "$(printf '%s' "$APPLE_SIGN_IN_PRIVATE_KEY_PROD" | tr -d '\r\n ')" ]; then
             echo "::error::APPLE_SIGN_IN_PRIVATE_KEY_PROD is empty; Apple account deletion could not revoke."
+            exit 1
+          fi
+          # Same for the In-App Purchase key: empty, every App Store purchase and notification would
+          # fail verification and the app's Billing would fail closed for everyone.
+          if [ -z "$(printf '%s' "$APPLE_IAP_PRIVATE_KEY_PROD" | tr -d '\r\n ')" ]; then
+            echo "::error::APPLE_IAP_PRIVATE_KEY_PROD is empty; App Store purchases could not be verified."
             exit 1
           fi
 
