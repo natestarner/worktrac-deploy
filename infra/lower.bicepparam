@@ -2,7 +2,11 @@
 // this file. IMAGE_TAG is the tag in manifests/image-tag.txt.
 using './backend.bicep'
 
-param appName = 'worktrac-backend-lower'
+// Central US since 2026-11-20, beside the database (worktrac-source docs/architecture/region-move.md).
+// A new name because the East US app keeps 'worktrac-backend-lower' until it is deleted.
+param appName = 'worktrac-backend-lower-cus'
+param location = 'centralus'
+param managedEnvironmentName = 'worktrac-env-cus'
 param image = 'ghcr.io/natestarner/worktrac-backend:${readEnvironmentVariable('IMAGE_TAG')}'
 
 // 1 vCPU / 2Gi since 2026-10-30, for e2e throughput.
@@ -54,10 +58,10 @@ param probes = [
 // in-flight requests (and claims nothing new from the outbox) before it is killed.
 param terminationGracePeriodSeconds = 30
 
-param customDomains = [
-  { name: 'api.dev.huddle.fitness', certificateName: 'mc-worktrac-env-api-dev-huddle-f-7336' }
-  { name: 'worktrac-api-dev.starnerconsulting.co', certificateName: 'mc-worktrac-env-worktrac-api-dev-2523' }
-]
+// Empty until api.dev's CNAME points at this app: a managed certificate can only be issued then
+// (region-move.md, step 1.3). The legacy worktrac-api-dev.starnerconsulting.co name is dropped:
+// no shipped build or config ever called it.
+param customDomains = []
 
 param env = [
   { name: 'SPRING_DATASOURCE_URL', secret: true }

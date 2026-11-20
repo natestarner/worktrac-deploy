@@ -171,7 +171,7 @@ jobs:
       - name: Health check — backend
         uses: ./.github/actions/wait-for-url
         with:
-          url: https://worktrac-backend-lower.whitehill-3dc27bb3.eastus.azurecontainerapps.io/actuator/health
+          url: https://worktrac-backend-lower-cus.wittygrass-413cc690.centralus.azurecontainerapps.io/actuator/health
           label: Backend
           timeout-seconds: '180'
 
@@ -236,7 +236,7 @@ jobs:
       - name: Wait for backend to be ready
         uses: ./deploy/.github/actions/wait-for-url
         with:
-          url: https://worktrac-backend-lower.whitehill-3dc27bb3.eastus.azurecontainerapps.io/actuator/health
+          url: https://worktrac-backend-lower-cus.wittygrass-413cc690.centralus.azurecontainerapps.io/actuator/health
           label: Backend
           timeout-seconds: '180'
 
@@ -261,7 +261,7 @@ jobs:
         run: |
           for i in $(seq 1 8); do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
-              https://worktrac-backend-lower.whitehill-3dc27bb3.eastus.azurecontainerapps.io/actuator/health || echo "000")
+              https://worktrac-backend-lower-cus.wittygrass-413cc690.centralus.azurecontainerapps.io/actuator/health || echo "000")
             echo "warm-up ping $i: $code"
             sleep 2
           done
@@ -347,7 +347,7 @@ jobs:
         if: steps.select.outputs.count != '0'
         uses: ./deploy/.github/actions/wait-for-url
         with:
-          url: https://worktrac-backend-lower.whitehill-3dc27bb3.eastus.azurecontainerapps.io/actuator/health
+          url: https://worktrac-backend-lower-cus.wittygrass-413cc690.centralus.azurecontainerapps.io/actuator/health
           label: Backend
           timeout-seconds: '180'
 
