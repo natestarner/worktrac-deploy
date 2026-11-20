@@ -72,10 +72,12 @@ param scaleRules = [
   }
 ]
 
-// Empty until api.huddle.fitness's CNAME points at this app: a managed certificate can only be
-// issued then (region-move.md, step 2.4). The legacy worktrac-api.starnerconsulting.co name is
-// dropped: no shipped build or config ever called it.
-param customDomains = []
+// Bound 2026-11-20 after api.huddle.fitness's CNAME moved here: `az containerapp hostname add`, then
+// `hostname bind --validation-method CNAME`, which issued this managed certificate. The legacy
+// worktrac-api.starnerconsulting.co name is dropped: no shipped build or config ever called it.
+param customDomains = [
+  { name: 'api.huddle.fitness', certificateName: 'mc-worktrac-env-c-api-huddle-fitne-1107' }
+]
 
 param env = [
   { name: 'SPRING_DATASOURCE_URL', secret: true }
