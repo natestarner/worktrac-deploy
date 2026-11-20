@@ -87,7 +87,8 @@ jobs:
       - name: Read the image tag the app is running now
         id: tag
         run: |
-          app=worktrac-backend-${{ matrix.environment }}
+          # The Central US apps since 2026-11-20 (worktrac-source docs/architecture/region-move.md).
+          app=worktrac-backend-${{ matrix.environment }}-cus
           image=$(az containerapp show --name "$app" --resource-group worktrac-rg \
             --query "properties.template.containers[0].image" -o tsv)
           echo "Live image: $image"
@@ -126,7 +127,7 @@ jobs:
         run: |
           trap 'rm -f "$RUNNER_TEMP/params.json" "$RUNNER_TEMP/live.json"' EXIT
           az bicep build-params --file infra/${{ matrix.environment }}.bicepparam --stdout > "$RUNNER_TEMP/params.json"
-          az containerapp show --name worktrac-backend-${{ matrix.environment }} --resource-group worktrac-rg             -o json > "$RUNNER_TEMP/live.json"
+          az containerapp show --name worktrac-backend-${{ matrix.environment }}-cus --resource-group worktrac-rg             -o json > "$RUNNER_TEMP/live.json"
           {
             echo "Secret env vars compared with the live app:"
             echo '```'
