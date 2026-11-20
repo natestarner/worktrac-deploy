@@ -1,7 +1,9 @@
 // Production alerts (infra/monitoring.bicep). Applied by deploy-prod.yml's deploy-monitoring-prod job.
 using './monitoring.bicep'
 
-param appName = 'worktrac-backend-prod'
+// The Central US app since 2026-11-20 (worktrac-source docs/architecture/region-move.md). The rules
+// are named after it, so this creates a new set; the old app's rules are deleted with the old app.
+param appName = 'worktrac-backend-prod-cus'
 param sqlServerName = 'worktrac-sql-server'
 param sqlDatabaseName = 'worktrac-db-prod'
 
