@@ -5,9 +5,12 @@ using './backend.bicep'
 param appName = 'worktrac-backend-prod'
 param image = 'ghcr.io/natestarner/worktrac-backend:${readEnvironmentVariable('IMAGE_TAG')}'
 
-// Deliberately small for now: scale up (vertically) first, then out, as usage grows.
-param cpu = '0.25'
-param memory = '0.5Gi'
+// Scale up (vertically) first, then out, as usage grows. 0.25 vCPU / 0.5Gi until 2026-11-20:
+// with the first real users, GET /api/auth/me (the app's simplest call) ran 0.6s typical and
+// 2.3s at p90, up to 6.4s, while the database sat under 15% and memory at ~90% of the limit.
+// The CPU was the bottleneck. ~$6/month more when idle.
+param cpu = '0.5'
+param memory = '1Gi'
 
 // Always warm.
 param minReplicas = 1
@@ -23,6 +26,7 @@ param maxReplicas = 1
 // Readiness is MORE tolerant than lower's (6 x 5s here, 5 x 3s there): this is the only replica,
 // so taking it out of rotation is an outage, not a reroute.
 // Startup allows 240s: a restart at 0.25 vCPU took ~2.5 minutes on 2026-11-19 (a deploy, ~20s).
+// Left at 240s after the 2026-11-20 resize to 0.5 vCPU, as a margin.
 param probes = [
   {
     type: 'Liveness'
