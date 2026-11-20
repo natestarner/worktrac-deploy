@@ -58,10 +58,13 @@ param probes = [
 // in-flight requests (and claims nothing new from the outbox) before it is killed.
 param terminationGracePeriodSeconds = 30
 
-// Empty until api.dev's CNAME points at this app: a managed certificate can only be issued then
-// (region-move.md, step 1.3). The legacy worktrac-api-dev.starnerconsulting.co name is dropped:
-// no shipped build or config ever called it.
-param customDomains = []
+// Bound 2026-11-20 after api.dev's CNAME moved here: `az containerapp hostname add`, then
+// `hostname bind --validation-method CNAME`, which issued this managed certificate (~7 min). The
+// legacy worktrac-api-dev.starnerconsulting.co name is dropped: no shipped build or config ever
+// called it.
+param customDomains = [
+  { name: 'api.dev.huddle.fitness', certificateName: 'mc-worktrac-env-c-api-dev-huddle-f-5278' }
+]
 
 param env = [
   { name: 'SPRING_DATASOURCE_URL', secret: true }
