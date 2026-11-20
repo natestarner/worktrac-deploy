@@ -106,7 +106,7 @@ jobs:
         run: |
           deadline=$(( $(date +%s) + 600 ))
           while true; do
-            read -r latest ready <<<"$(az containerapp show --name worktrac-backend-prod --resource-group worktrac-rg \
+            read -r latest ready <<<"$(az containerapp show --name worktrac-backend-prod-cus --resource-group worktrac-rg \
               --query "[properties.latestRevisionName, properties.latestReadyRevisionName]" -o tsv | tr '\n\t' '  ')"
             if [ -n "$latest" ] && [ "$latest" = "$ready" ]; then
               echo "Revision $latest is ready."
@@ -126,7 +126,7 @@ jobs:
       - name: Wait for production backend health
         uses: ./.github/actions/wait-for-url
         with:
-          url: https://api.huddle.fitness/actuator/health
+          url: https://worktrac-backend-prod-cus.wittygrass-413cc690.centralus.azurecontainerapps.io/actuator/health
           label: production backend
           timeout-seconds: '300'
 
@@ -134,7 +134,7 @@ jobs:
       # A 404 means the app's routes are not mounted; a 5xx means the app is up but broken.
       - name: Smoke test a real route
         run: |
-          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://api.huddle.fitness/api/auth/me)
+          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://worktrac-backend-prod-cus.wittygrass-413cc690.centralus.azurecontainerapps.io/api/auth/me)
           echo "GET /api/auth/me (no token) -> $status"
           if [ "$status" != "401" ]; then
             echo "::error::Expected 401 from an unauthenticated /api/auth/me, got $status."
