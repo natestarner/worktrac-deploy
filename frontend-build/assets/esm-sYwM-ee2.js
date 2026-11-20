@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/web-Cv7pPMFN.js","assets/index-OLIfaDsm.js","assets/index-pxO_t0Wh.css"])))=>i.map(i=>d[i]);
+import{i as e,r as t}from"./index-OLIfaDsm.js";var n=t(`KeepAwake`,{web:()=>e(()=>import(`./web-Cv7pPMFN.js`).then(e=>new e.KeepAwakeWeb),__vite__mapDeps([0,1,2]))});export{n as KeepAwake};
