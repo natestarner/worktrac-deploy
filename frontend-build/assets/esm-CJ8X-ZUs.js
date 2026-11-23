@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/web-Dc6V51Yu.js","assets/index-khw5oMSC.js","assets/index-BTO-YKjQ.css"])))=>i.map(i=>d[i]);
+import{i as e,r as t}from"./index-khw5oMSC.js";var n=t(`KeepAwake`,{web:()=>e(()=>import(`./web-Dc6V51Yu.js`).then(e=>new e.KeepAwakeWeb),__vite__mapDeps([0,1,2]))});export{n as KeepAwake};
