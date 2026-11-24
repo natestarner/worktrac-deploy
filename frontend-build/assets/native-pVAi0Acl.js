@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/native-CGrogWYh.js","assets/index-QAjtvaH-.js","assets/index-gG7otOXk.css"])))=>i.map(i=>d[i]);
+import{i as e,r as t}from"./index-QAjtvaH-.js";var n=t(`Browser`,{web:()=>e(()=>import(`./native-CGrogWYh.js`).then(e=>new e.BrowserWeb),__vite__mapDeps([0,1,2]))});export{n as Browser};
