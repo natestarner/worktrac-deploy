@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/native-sc3be-u8.js","assets/index-CSVsOcbt.js","assets/index-BmMUSZ-S.css"])))=>i.map(i=>d[i]);
+import{i as e,r as t}from"./index-CSVsOcbt.js";var n=t(`Browser`,{web:()=>e(()=>import(`./native-sc3be-u8.js`).then(e=>new e.BrowserWeb),__vite__mapDeps([0,1,2]))});export{n as Browser};
