@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/native-Dpn-D730.js","assets/index-BaoHb_zw.js","assets/index-jOVo0KSo.css"])))=>i.map(i=>d[i]);
+import{i as e,r as t}from"./index-BaoHb_zw.js";var n=t(`AppLauncher`,{web:()=>e(()=>import(`./native-Dpn-D730.js`).then(e=>new e.AppLauncherWeb),__vite__mapDeps([0,1,2]))});export{n as AppLauncher};
