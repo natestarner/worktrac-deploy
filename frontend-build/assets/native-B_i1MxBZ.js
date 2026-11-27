@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/native-DIDuerns.js","assets/index-CpNkw2ul.js","assets/index-Fb7_7GIg.css"])))=>i.map(i=>d[i]);
+import{i as e,r as t}from"./index-CpNkw2ul.js";var n=t(`AppLauncher`,{web:()=>e(()=>import(`./native-DIDuerns.js`).then(e=>new e.AppLauncherWeb),__vite__mapDeps([0,1,2]))});export{n as AppLauncher};
